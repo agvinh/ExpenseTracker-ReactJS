@@ -1,22 +1,22 @@
-# ExpenseTracker Solution / Gi?i ph�p ExpenseTracker
+# ExpenseTracker Solution / Giải pháp ExpenseTracker
 
-> English follows Vietnamese (Song ng?: VI ? tr�n, EN ? d�?i).
-
----
-## (VI) T?ng quan
-Gi?i ph�p g?m 2 ph?n ch�nh:
-1. **Backend** (ASP.NET Core /.NET 9 Web API) � ��ng k?/��ng nh?p (JWT), CRUD chi ti�u, upload ?nh, ph�n trang, Identity + EF Core.
-2. **Frontend** (React + Vite) � SPA s? d?ng Material UI, i18next (EN/VI), react-hook-form + zod, Axios.
+> English follows Vietnamese (Song ngữ: VI ở trên, EN ở dưới).
 
 ---
-## 1. C?u tr�c th� m?c (r�t g?n)
+## (VI) Tổng quan
+Giải pháp gồm 2 phần chính:
+1. **Backend** (ASP.NET Core /.NET 9 Web API) – Đăng ký/đăng nhập (JWT), CRUD chi tiêu, upload ảnh, phân trang, Identity + EF Core.
+2. **Frontend** (React + Vite) – SPA sử dụng Material UI, i18next (EN/VI), react-hook-form + zod, Axios.
+
+---
+## 1. Cấu trúc thư mục (rút gọn)
 ```
 /ExpenseTracker.Api            # ASP.NET Core API (.NET 9)
   /Controllers
   /Data (DbContext, Entities, Seeder, Migrations)
   /Dtos
   /wwwroot (uploads)
-/ExpenseTracker.Web (n?u d�ng Razor Pages k?t h?p)  
+/ExpenseTracker.Web (nếu dùng Razor Pages kết hợp)  
 /expense-tracker-frontend     # React (Vite)
   /src
   /public
@@ -25,18 +25,18 @@ README.md
 
 ---
 ## 2. Backend
-### 2.1 C?u h?nh
-`appsettings.json` ho?c user-secrets:
+### 2.1 Cấu hình
+`appsettings.json` hoặc user-secrets:
 ```json
 "ConnectionStrings": {"DefaultConnection": "Server=localhost;Database=ExpenseTrackerDb;Trusted_Connection=True;TrustServerCertificate=True;"},
-"Jwt": {"Key": "<Chu?i >= 32 k? t? ho?c Base64 32 bytes>", "Issuer": "ExpenseTracker"}
+"Jwt": {"Key": "<Chuỗi >= 32 ký tự hoặc Base64 32 bytes>", "Issuer": "ExpenseTracker"}
 ```
-> Kh�ng sinh key m?i m?i l?n ch?y.
+> Không sinh key mới mỗi lần chạy.
 
-### 2.2 Ch?y c?c b?
+### 2.2 Chạy cục bộ
 ```bash
 cd ExpenseTracker.Api
-# dotnet ef database update (n?u ch�a c� DB)
+# dotnet ef database update (nếu chưa có DB)
 dotnet run
 ```
 Swagger: `https://localhost:<sslPort>/swagger`.
@@ -50,53 +50,53 @@ dotnet ef database update
 ```
 
 ### 2.4 Debug
-- �?t breakpoint controller / d?ch v?.  
-- G?i qua Swagger (Authorize b?ng JWT).  
-- 302 -> ki?m tra default auth scheme (JWT).
+- Đặt breakpoint controller / dịch vụ.  
+- Gọi qua Swagger (Authorize bằng JWT).  
+- 302 -> kiểm tra default auth scheme (JWT).
 
 ---
 ## 3. Frontend (React + Vite)
-### 3.1 C?u h?nh m�i tr�?ng
+### 3.1 Cấu hình môi trường
 `.env`:
 ```
 VITE_API_BASE=https://localhost:7162/api
 ```
-### 3.2 Ch?y
+### 3.2 Chạy
 ```bash
 cd expense-tracker-frontend
 npm install
 npm run dev
-npm run build   # t?o dist/
+npm run build   # tạo dist/
 ```
 ### 3.3 Debug
-- DevTools Network ki?m tra header Authorization.  
-- 401 -> ��ng nh?p l?i ho?c tri?n khai refresh token.
+- DevTools Network kiểm tra header Authorization.  
+- 401 -> đăng nhập lại hoặc triển khai refresh token.
 
 ---
-## 4. Quy tr?nh JWT qua Swagger
-1. POST `/api/Auth/register` (1 l?n).  
-2. POST `/api/Auth/login` -> l?y `token`.  
-3. Authorize -> nh?p `Bearer <token>`.  
-4. G?i API Expenses.  
+## 4. Quy trình JWT qua Swagger
+1. POST `/api/Auth/register` (1 lần).  
+2. POST `/api/Auth/login` -> lấy `token`.  
+3. Authorize -> nhập `Bearer <token>`.  
+4. Gọi API Expenses.  
 5. Upload: `POST /api/Expenses/{id}/bill-image`.
 
 ---
-## 5. Tri?n khai IIS
+## 5. Triển khai IIS
 ### 5.1 Backend
 ```bash
 cd ExpenseTracker.Api
 dotnet publish -c Release -o ..\publish\api
 ```
-- App Pool ri�ng (No Managed Code).  
-- Bi?n m�i tr�?ng: ConnectionString, Jwt:Key, Jwt:Issuer.  
-- Quy?n ghi th� m?c `wwwroot/uploads` cho IIS_IUSRS.
+- App Pool riêng (No Managed Code).  
+- Biến môi trường: ConnectionString, Jwt:Key, Jwt:Issuer.  
+- Quyền ghi thư mục `wwwroot/uploads` cho IIS_IUSRS.
 
 ### 5.2 Frontend
 ```bash
 cd expense-tracker-frontend
 npm run build
 ```
-Copy `dist/` l�n IIS, th�m `web.config` SPA fallback:
+Copy `dist/` lên IIS, thêm `web.config` SPA fallback:
 ```xml
 <?xml version="1.0"?>
 <configuration>
@@ -119,24 +119,24 @@ app.UseCors("frontend");
 ```
 ### 5.4 Chung domain
 - Root: React dist.  
-- Application con `/api` tr? API.  
+- Application con `/api` trỏ API.  
 - `.env`: `VITE_API_BASE=https://domain.com/api`.
 
 ---
-## 6. Refresh Token (tu? ch?n)
-- B?ng `RefreshTokens` (hash SHA256).  
-- Access token 15 ph�t; refresh 7�30 ng�y.  
+## 6. Refresh Token (tuỳ chọn)
+- Bảng `RefreshTokens` (hash SHA256).  
+- Access token 15 phút; refresh 7–30 ngày.  
 - Endpoint `/api/Auth/refresh`, `/api/Auth/revoke`.
 
 ---
 ## 7. Troubleshooting
-| V?n �? | Nguy�n nh�n | Gi?i ph�p |
+| Vấn đề | Nguyên nhân | Giải pháp |
 |--------|-------------|-----------|
-| 302 Redirect | Cookie auth challenge | �?t default scheme = JWT |
-| 401 d� token ��ng | Sai Jwt:Key | �?ng b? key c?u h?nh |
-| 404 swagger.json | Swagger ch? b?t Dev | B?t ? Prod n?u c?n |
-| Upload 500 | Th� m?c / quy?n | T?o `wwwroot/uploads` + c?p quy?n |
-| CORS l?i | Kh�c domain | Th�m policy & `UseCors` |
+| 302 Redirect | Cookie auth challenge | Đặt default scheme = JWT |
+| 401 dù token đúng | Sai Jwt:Key | Đồng bộ key cấu hình |
+| 404 swagger.json | Swagger chỉ bật Dev | Bật ở Prod nếu cần |
+| Upload 500 | Thư mục / quyền | Tạo `wwwroot/uploads` + cấp quyền |
+| CORS lỗi | Khác domain | Thêm policy & `UseCors` |
 
 ---
 ## 8. Scripts
@@ -152,19 +152,19 @@ dotnet ef database update
 ```
 
 ---
-## 9. �?nh h�?ng
-Bi?u �?, export CSV/Excel, refresh token �?y �?, roles, tests.
+## 9. Định hướng
+Biểu đồ, export CSV/Excel, refresh token đầy đủ, roles, tests.
 
 ---
-## 10. License / ��ng g�p
-- Th�m License (MIT �) n?u open-source.  
-- PR / Issues ��?c hoan ngh�nh.  
+## 10. License / Đóng góp
+- Thêm License (MIT …) nếu open-source.  
+- PR / Issues được hoan nghênh.  
 
 ---
 # (EN) Overview
 Two primary parts:
-1. **Backend** (ASP.NET Core /.NET 9 Web API) � JWT auth, Expense CRUD, image upload, pagination, Identity + EF Core.
-2. **Frontend** (React + Vite SPA) � MUI, i18next (EN/VI), react-hook-form + zod, Axios.
+1. **Backend** (ASP.NET Core /.NET 9 Web API) – JWT auth, Expense CRUD, image upload, pagination, Identity + EF Core.
+2. **Frontend** (React + Vite SPA) – MUI, i18next (EN/VI), react-hook-form + zod, Axios.
 
 ## 1. Directory Structure (short)
 ```
