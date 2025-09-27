@@ -429,12 +429,12 @@ FodyWeavers.xsd
 # End of VisualStudio.gitignore
 
 ### Ignore output folder and files ### 
-/AdvanceInstaller/*.back*.aip
-/Output/vbm-api/obj/x64/Release/NuGet
+**/AdvanceInstaller/*.back*.aip
 CLIP Tool
 bundle
-/src/AdvanceInstaller/Installer-cache
-/.github
-/ExpenseTracker.Web/Migrations
-/ExpenseTracker.Web/wwwroot/lib
-/ExpenseTracker.Web/wwwroot/uploads
+**/AdvanceInstaller/Installer-cache
+**/.github
+**/Migrations
+**/wwwroot/lib
+**/wwwroot/uploads
+**/*.csproj.user
