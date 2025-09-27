@@ -70,8 +70,30 @@ builder.Services.ConfigureApplicationCookie(o =>
     };
 });
 
+// Add CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowReactApp", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173", "https://localhost:5173", 
+                          "http://localhost:4173", "https://localhost:4173",
+                          "http://localhost:5174", "https://localhost:5174",
+                          "http://localhost:4174", "https://localhost:4174",
+                          "http://localhost:4175", "https://localhost:4175",
+                          "http://localhost:5175", "https://localhost:5175")
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials();
+    });
+});
+
 builder.Services.AddAuthorization();
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Configure JSON serialization to use camelCase
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -121,6 +143,9 @@ else
 app.UseStaticFiles(); // upload image in wwwroot
 
 app.UseHttpsRedirection();
+
+// Use CORS
+app.UseCors("AllowReactApp");
 
 app.UseRouting();
 app.UseAuthentication();

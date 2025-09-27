@@ -1,0 +1,161 @@
+import i18n from "i18next";
+import { initReactI18next } from "react-i18next";
+
+const resources = {
+  en: {
+    translation: {
+      login: "Login",
+      register: "Register",
+      username: "Username",
+      password: "Password",
+      logout: "Logout",
+      expenses: "Expenses",
+      addExpense: "Add Expense",
+      // AddExpense page
+      dateTime: "Date & Time",
+      amount: "Amount (VND)",
+      category: "Category",
+      description: "Description",
+      billImage: "Bill image (optional)",
+      save: "Save",
+      saving: "Saving...",
+      // Placeholders
+      categoryPlaceholder: "Food, Transport...",
+      descriptionPlaceholder: "Optional",
+      // Validation messages
+      dateRequired: "Date is required",
+      amountRequired: "Amount is required",
+      categoryRequired: "Category is required",
+      amountMustBePositive: "Amount must be a positive number",
+      amountMaxDecimals: "Amount must have at most 2 decimal places",
+      // Success/Error messages
+      expenseSaved: "Expense saved successfully",
+      failedToSave: "Failed to save expense",
+      willBeSavedAs: "Will be saved as number:",
+      // Register page
+      email: "Email",
+      confirmPassword: "Confirm Password",
+      usernameTooShort: "Username must be at least 3 chars",
+      emailInvalid: "Email is invalid",
+      passwordTooShort: "Password min length is 6",
+      confirmPasswordTooShort: "Confirm password min length is 6",
+      passwordsNotMatch: "Passwords do not match",
+      usernameOrEmailExists: "Username or email already exists",
+      // Dashboard
+      noExpensesYet: "No expenses yet",
+      startTrackingExpenses: "Start tracking your expenses by adding your first expense",
+      tableHeaders: {
+        dateTime: "Date & Time",
+        category: "Category", 
+        amount: "Amount",
+        description: "Description",
+        billImage: "Bill Image",
+        actions: "Actions"
+      },
+      viewDetails: "View Details",
+      edit: "Edit",
+      delete: "Delete",
+      noImage: "No image",
+      // Dialog and confirmation messages
+      expenseDetails: "Expense Details",
+      confirmDelete: "Confirm Delete",
+      deleteConfirmation: "Are you sure you want to delete this expense? This action cannot be undone.",
+      cancel: "Cancel",
+      confirm: "Confirm",
+      close: "Close",
+      deleteSuccess: "Expense deleted successfully",
+      deleteFailed: "Failed to delete expense",
+      loadingDetails: "Loading details...",
+      deleting: "Deleting...",
+      failedToLoadDetails: "Failed to load expense details",
+      // Edit expense
+      editExpense: "Edit Expense",
+      updateExpense: "Update Expense",
+      expenseUpdated: "Expense updated successfully",
+      failedToUpdate: "Failed to update expense",
+      back: "Back",
+    },
+  },
+  vi: {
+    translation: {
+      login: "Đăng nhập",
+      register: "Đăng ký",
+      username: "Tên đăng nhập",
+      password: "Mật khẩu",
+      logout: "Đăng xuất",
+      expenses: "Chi tiêu",
+      addExpense: "Thêm chi tiêu",
+      // AddExpense page
+      dateTime: "Ngày & Giờ",
+      amount: "Số tiền (VNĐ)",
+      category: "Danh mục",
+      description: "Mô tả",
+      billImage: "Hình ảnh hóa đơn (tùy chọn)",
+      save: "Lưu",
+      saving: "Đang lưu...",
+      // Placeholders
+      categoryPlaceholder: "Ăn uống, Di chuyển...",
+      descriptionPlaceholder: "Tùy chọn",
+      // Validation messages
+      dateRequired: "Ngày là bắt buộc",
+      amountRequired: "Số tiền là bắt buộc",
+      categoryRequired: "Danh mục là bắt buộc",
+      amountMustBePositive: "Số tiền phải là số dương",
+      amountMaxDecimals: "Số tiền tối đa 2 chữ số thập phân",
+      // Success/Error messages
+      expenseSaved: "Chi tiêu đã được lưu thành công",
+      failedToSave: "Không thể lưu chi tiêu",
+      willBeSavedAs: "Sẽ được lưu dưới dạng số:",
+      // Register page
+      email: "Email",
+      confirmPassword: "Xác nhận mật khẩu",
+      usernameTooShort: "Tên đăng nhập phải có ít nhất 3 ký tự",
+      emailInvalid: "Email không hợp lệ",
+      passwordTooShort: "Mật khẩu phải có ít nhất 6 ký tự",
+      confirmPasswordTooShort: "Xác nhận mật khẩu phải có ít nhất 6 ký tự",
+      passwordsNotMatch: "Mật khẩu không khớp",
+      usernameOrEmailExists: "Tên đăng nhập hoặc email đã tồn tại",
+      // Dashboard
+      noExpensesYet: "Chưa có chi tiêu nào",
+      startTrackingExpenses: "Bắt đầu theo dõi chi tiêu bằng cách thêm chi tiêu đầu tiên",
+      tableHeaders: {
+        dateTime: "Ngày & Giờ",
+        category: "Danh mục", 
+        amount: "Số tiền",
+        description: "Mô tả",
+        billImage: "Hình hóa đơn",
+        actions: "Thao tác"
+      },
+      viewDetails: "Xem chi tiết",
+      edit: "Chỉnh sửa",
+      delete: "Xóa",
+      noImage: "Không có hình",
+      // Dialog and confirmation messages
+      expenseDetails: "Chi tiết chi tiêu",
+      confirmDelete: "Xác nhận xóa",
+      deleteConfirmation: "Bạn có chắc chắn muốn xóa chi tiêu này? Hành động này không thể hoàn tác.",
+      cancel: "Hủy",
+      confirm: "Xác nhận",
+      close: "Đóng",
+      deleteSuccess: "Xóa chi tiêu thành công",
+      deleteFailed: "Không thể xóa chi tiêu",
+      loadingDetails: "Đang tải chi tiết...",
+      deleting: "Đang xóa...",
+      failedToLoadDetails: "Không thể tải chi tiết chi tiêu",
+      // Edit expense
+      editExpense: "Chỉnh sửa chi tiêu",
+      updateExpense: "Cập nhật chi tiêu",
+      expenseUpdated: "Cập nhật chi tiêu thành công",
+      failedToUpdate: "Không thể cập nhật chi tiêu",
+      back: "Quay lại",
+    },
+  },
+};
+
+i18n.use(initReactI18next).init({
+  resources,
+  lng: "en",
+  interpolation: { escapeValue: false },
+});
+
+export default i18n;
