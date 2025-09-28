@@ -173,13 +173,16 @@ public class TesseractOcrService : IOcrService
     {
         try
         {
+            // Convert to grayscale for better OCR
             var grayscale = originalImage.ConvertRGBToGray();
-            var w = grayscale.Width; 
-            var h = grayscale.Height;
+
+            // Scale image if too small (improves OCR accuracy)
+            var width = grayscale.Width; 
+            var height = grayscale.Height;
             
-            if (w < 800 || h < 600)
+            if (width < 800 || height < 600)
             {
-                var scale = Math.Max(800f / w, 600f / h);
+                var scale = Math.Max(800f / width, 600f / height);
                 var scaled = grayscale.Scale(scale, scale);
                 grayscale.Dispose();
                 _logger.LogDebug("Basic preprocessing: resized by {Scale}", scale);
@@ -458,34 +461,6 @@ public class TesseractOcrService : IOcrService
         catch
         {
             return false;
-        }
-    }
-
-    private Pix PreprocessImage(Pix originalImage)
-    {
-        try
-        {
-            // Convert to grayscale for better OCR
-            var gray = originalImage.ConvertRGBToGray();
-
-            // Scale image if too small (improves OCR accuracy)
-            var width = gray.Width;
-            var height = gray.Height;
-
-            if (width < 800 || height < 600)
-            {
-                var scale = Math.Max(800f / width, 600f / height);
-                var scaled = gray.Scale(scale, scale);
-                gray.Dispose();
-                return scaled;
-            }
-
-            return gray;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Image preprocessing failed, using original image");
-            return originalImage.Clone();
         }
     }
 }
