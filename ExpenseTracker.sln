@@ -5,8 +5,6 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExpenseTracker.Api", "ExpenseTracker.Api\ExpenseTracker.Api.csproj", "{59616DC2-7F89-DB74-2391-69CF542D3BFA}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "expense-tracker-frontend", "expense-tracker-frontend", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
-EndProject
 Project("{E24C65DC-7377-472B-9ABA-BC803B73C61A}") = "expense-tracker-frontend", "expense-tracker-frontend\", "{03FE7CE9-80FF-4B88-24E5-11177530CF27}"
 	ProjectSection(WebsiteProperties) = preProject
 		TargetFrameworkMoniker = ".NETFramework,Version%3Dv4.8.1"
@@ -45,9 +43,6 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(NestedProjects) = preSolution
-		{03FE7CE9-80FF-4B88-24E5-11177530CF27} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {227D3EB6-D10A-4ECB-BF11-76F25BB4EB20}

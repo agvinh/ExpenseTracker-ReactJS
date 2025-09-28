@@ -1,0 +1,23 @@
+### Test OCR with existing bill images
+
+# Test với bill_1_6305f3b274ad4d468e0e5ed35ebbdb24.jpg
+POST https://localhost:7162/api/expenses/test-ocr/bill_1_6305f3b274ad4d468e0e5ed35ebbdb24.jpg
+Accept: application/json
+
+###
+
+# Test với bill_4_9c064dad010c4a1884cf7575b2f82326.jpg  
+POST https://localhost:7162/api/expenses/test-ocr/bill_4_9c064dad010c4a1884cf7575b2f82326.jpg
+Accept: application/json
+
+###
+
+# Test với bill_5_b8ff11e919864baab70495aa22d0a735.jpg
+POST https://localhost:7162/api/expenses/test-ocr/bill_5_b8ff11e919864baab70495aa22d0a735.jpg
+Accept: application/json
+
+###
+
+# Test với bill_6_b2c1e99e6e674174ad7dbcfd0db84f23.jpg
+POST https://localhost:7162/api/expenses/test-ocr/bill_6_b2c1e99e6e674174ad7dbcfd0db84f23.jpg
+Accept: application/json

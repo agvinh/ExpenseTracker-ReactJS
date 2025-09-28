@@ -7,6 +7,7 @@ import api from "../api/axios";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { formatAmountDisplay, parseAmountToNumber, getAllowedCharsRegex, getPlaceholderText } from "../utils/currency";
+import { extractAmountFromImage, formatExtractedAmount } from "../services/ocrService";
 import {
   Container,
   Paper,
@@ -17,13 +18,19 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Alert,
-  Grid
+  Grid,
+  CircularProgress,
+  Chip,
+  Stack
 } from "@mui/material";
-import { AddCircleOutlined, CloudUpload } from "@mui/icons-material";
+import { AddCircleOutlined, CloudUpload, AutoAwesome, PhotoCamera } from "@mui/icons-material";
 
 export default function AddExpense() {
   const navigate = useNavigate();
   const [serverError, setServerError] = useState("");
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrResult, setOcrResult] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
   const { t, i18n } = useTranslation();
   
   // Get current locale
@@ -38,7 +45,7 @@ export default function AddExpense() {
     file: z.any().optional(), // xử lý thủ công
   });
 
-  const { register, handleSubmit, control, watch,
+  const { register, handleSubmit, control, watch, setValue,
           formState: { errors, isSubmitting } } =
     useForm({ resolver: zodResolver(schema), mode: "onTouched",
       defaultValues: {
@@ -50,6 +57,41 @@ export default function AddExpense() {
     });
 
   const amountDisplay = watch("amountDisplay");
+
+  // Handle OCR extraction
+  const handleOcrExtraction = async (file) => {
+    if (!file) return;
+    
+    setOcrLoading(true);
+    setOcrResult(null);
+    setServerError("");
+    
+    try {
+      const result = await extractAmountFromImage(file);
+      setOcrResult(result);
+      
+      if (result.success && result.extractedAmount) {
+        // Auto-fill the amount field
+        const formattedAmount = formatExtractedAmount(result.extractedAmount, currentLocale);
+        setValue("amountDisplay", formattedAmount);
+      }
+    } catch (error) {
+      console.error('OCR failed:', error);
+      setServerError(t("ocrFailed") || "Failed to extract amount from image");
+    } finally {
+      setOcrLoading(false);
+    }
+  };
+
+  // Handle file selection
+  const handleFileChange = async (event) => {
+    const file = event.target.files[0];
+    setSelectedFile(file);
+    
+    if (file) {
+      await handleOcrExtraction(file);
+    }
+  };
 
   async function onSubmit(values) {
     setServerError("");
@@ -208,16 +250,25 @@ export default function AddExpense() {
               />
             </Grid>
 
-            {/* File Upload */}
+            {/* File Upload with OCR */}
             <Grid item xs={12}>
               <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'medium' }}>
                 {t("billImage")}
+                <Chip 
+                  icon={<AutoAwesome />} 
+                  label="Auto Extract Amount" 
+                  size="small" 
+                  color="primary" 
+                  variant="outlined" 
+                  sx={{ ml: 1 }}
+                />
               </Typography>
+              
               <Button
                 variant="outlined"
                 component="label"
-                startIcon={<CloudUpload />}
-                disabled={isSubmitting}
+                startIcon={ocrLoading ? <CircularProgress size={20} /> : <PhotoCamera />}
+                disabled={isSubmitting || ocrLoading}
                 fullWidth
                 sx={{ 
                   py: 2, 
@@ -228,14 +279,56 @@ export default function AddExpense() {
                   }
                 }}
               >
-                Choose File
+                {ocrLoading ? "Extracting amount..." : selectedFile ? selectedFile.name : "Choose Bill Image"}
                 <input
                   type="file"
                   hidden
                   accept="image/*"
+                  onChange={handleFileChange}
                   {...register("file")}
                 />
               </Button>
+
+              {/* OCR Results */}
+              {ocrResult && (
+                <Box sx={{ mt: 2 }}>
+                  {ocrResult.success && ocrResult.extractedAmount ? (
+                    <Alert severity="success" sx={{ mb: 2 }}>
+                      <Typography variant="body2">
+                        <strong>Amount extracted:</strong> {formatExtractedAmount(ocrResult.extractedAmount, currentLocale)} VND
+                      </Typography>
+                    </Alert>
+                  ) : ocrResult.success && ocrResult.possibleAmounts?.length > 0 ? (
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                      <Typography variant="body2" gutterBottom>
+                        <strong>Multiple amounts found:</strong>
+                      </Typography>
+                      <Stack direction="row" spacing={1} flexWrap="wrap">
+                        {ocrResult.possibleAmounts.map((amount, index) => (
+                          <Chip
+                            key={index}
+                            label={`${formatExtractedAmount(amount, currentLocale)} VND`}
+                            size="small"
+                            clickable
+                            onClick={() => {
+                              const formatted = formatExtractedAmount(amount, currentLocale);
+                              setValue("amountDisplay", formatted);
+                            }}
+                            sx={{ mb: 1 }}
+                          />
+                        ))}
+                      </Stack>
+                      <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                        Click on an amount to use it
+                      </Typography>
+                    </Alert>
+                  ) : (
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                      Could not extract amount from image. Please enter manually.
+                    </Alert>
+                  )}
+                </Box>
+              )}
             </Grid>
 
             {/* Submit Button */}

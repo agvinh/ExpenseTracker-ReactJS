@@ -1,6 +1,7 @@
 ﻿using System.Security.Claims;
 using ExpenseTracker.Api.Data;
 using ExpenseTracker.Api.Dtos;
+using ExpenseTracker.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -103,6 +104,75 @@ public class ExpensesController : ControllerBase
         _db.Remove(x);
         await _db.SaveChangesAsync();
         return NoContent();
+    }
+
+    // Test OCR với ảnh có sẵn trong uploads folder
+    [HttpPost("test-ocr/{filename}")]
+    public async Task<ActionResult<OcrResultDto>> TestOcrWithExistingImage(string filename)
+    {
+        var uploadsDir = Path.Combine(_env.WebRootPath ?? "wwwroot", "uploads");
+        var imagePath = Path.Combine(uploadsDir, filename);
+        
+        if (!System.IO.File.Exists(imagePath))
+        {
+            return NotFound($"Image {filename} not found in uploads folder");
+        }
+
+        try
+        {
+            var ocrService = HttpContext.RequestServices.GetRequiredService<IOcrService>();
+            var result = await ocrService.ExtractAmountFromImageAsync(imagePath);
+
+            return Ok(new OcrResultDto
+            {
+                Success = result.Success,
+                ExtractedAmount = result.ExtractedAmount,
+                PossibleAmounts = result.PossibleAmounts,
+                ErrorMessage = result.ErrorMessage
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest($"OCR processing failed: {ex.Message}");
+        }
+    }
+
+    // OCR endpoint để extract amount từ image
+    [HttpPost("extract-amount")]
+    [RequestSizeLimit(20_000_000)] // 20 MB
+    public async Task<ActionResult<OcrResultDto>> ExtractAmountFromImage(IFormFile file)
+    {
+        if (file == null || file.Length == 0) return BadRequest("No file provided.");
+
+        var tempPath = Path.GetTempFileName();
+        try
+        {
+            // Lưu file tạm thời
+            using (var stream = System.IO.File.Create(tempPath))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            // Gọi OCR service
+            var ocrService = HttpContext.RequestServices.GetRequiredService<IOcrService>();
+            var result = await ocrService.ExtractAmountFromImageAsync(tempPath);
+
+            return Ok(new OcrResultDto
+            {
+                Success = result.Success,
+                ExtractedAmount = result.ExtractedAmount,
+                PossibleAmounts = result.PossibleAmounts,
+                ErrorMessage = result.ErrorMessage
+            });
+        }
+        finally
+        {
+            // Xóa file tạm
+            if (System.IO.File.Exists(tempPath))
+            {
+                System.IO.File.Delete(tempPath);
+            }
+        }
     }
 
     // Upload/replace bill image (multipart/form-data)

@@ -16,3 +16,11 @@ public record ExpenseDto(
     string? Description,
     string? BillImageUrl
 );
+
+public record OcrResultDto
+{
+    public bool Success { get; init; }
+    public decimal? ExtractedAmount { get; init; }
+    public List<decimal> PossibleAmounts { get; init; } = new();
+    public string? ErrorMessage { get; init; }
+}

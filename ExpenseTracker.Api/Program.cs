@@ -4,8 +4,17 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Serilog early
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .Enrich.FromLogContext()
+    .CreateLogger();
+
+builder.Host.UseSerilog();
 
 var connStr = builder.Configuration.GetConnectionString("DefaultConnection")
               ?? "Server=localhost;Database=ExpenseTrackerDb;Trusted_Connection=True;TrustServerCertificate=True;";
@@ -87,6 +96,9 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Register OCR Service
+builder.Services.AddScoped<ExpenseTracker.Api.Services.IOcrService, ExpenseTracker.Api.Services.TesseractOcrService>();
+
 builder.Services.AddAuthorization();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -128,32 +140,44 @@ builder.Services.AddRazorPages();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
+try
 {
-    app.UseExceptionHandler("/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    app.UseHsts();
+    // Configure the HTTP request pipeline.
+    if (!app.Environment.IsDevelopment())
+    {
+        app.UseExceptionHandler("/Error");
+        // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+        app.UseHsts();
+    }
+    else
+    {
+        app.UseSwagger();
+        app.UseSwaggerUI();
+    }
+    app.UseStaticFiles(); // upload image in wwwroot
+
+    app.UseHttpsRedirection();
+
+    // Use CORS
+    app.UseCors("AllowReactApp");
+
+    app.UseRouting();
+    app.UseAuthentication();
+    app.UseAuthorization();
+
+    app.MapStaticAssets();
+    app.MapRazorPages()
+       .WithStaticAssets();
+    app.MapControllers();
+    await DbSeeder.SeedAsync(app.Services);
+
+    app.Run();
 }
-else
+catch (Exception ex)
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    Log.Fatal(ex, "Application terminated unexpectedly");
 }
-app.UseStaticFiles(); // upload image in wwwroot
-
-app.UseHttpsRedirection();
-
-// Use CORS
-app.UseCors("AllowReactApp");
-
-app.UseRouting();
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapStaticAssets();
-app.MapRazorPages()
-   .WithStaticAssets();
-app.MapControllers();
-await DbSeeder.SeedAsync(app.Services);
-app.Run();
+finally
+{
+    Log.CloseAndFlush();
+}

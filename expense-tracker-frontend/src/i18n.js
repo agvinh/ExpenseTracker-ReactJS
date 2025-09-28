@@ -74,6 +74,13 @@ const resources = {
       expenseUpdated: "Expense updated successfully",
       failedToUpdate: "Failed to update expense",
       back: "Back",
+      // OCR
+      ocrFailed: "Failed to extract amount from image",
+      extractingAmount: "Extracting amount...",
+      amountExtracted: "Amount extracted",
+      multipleAmountsFound: "Multiple amounts found",
+      clickToUse: "Click on an amount to use it",
+      couldNotExtract: "Could not extract amount from image. Please enter manually.",
     },
   },
   vi: {
@@ -148,6 +155,13 @@ const resources = {
       expenseUpdated: "Cập nhật chi tiêu thành công",
       failedToUpdate: "Không thể cập nhật chi tiêu",
       back: "Quay lại",
+      // OCR
+      ocrFailed: "Không thể trích xuất số tiền từ hình ảnh",
+      extractingAmount: "Đang trích xuất số tiền...",
+      amountExtracted: "Đã trích xuất số tiền",
+      multipleAmountsFound: "Tìm thấy nhiều số tiền",
+      clickToUse: "Click vào số tiền để sử dụng",
+      couldNotExtract: "Không thể trích xuất số tiền từ hình ảnh. Vui lòng nhập thủ công.",
     },
   },
 };
