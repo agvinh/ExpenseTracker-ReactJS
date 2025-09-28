@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
+using ExpenseTracker.Api.Services; // added for OCR DI registration
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,7 +35,7 @@ builder.Services.AddIdentity<AppUser, IdentityRole>(opts =>
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
 
-// Force JWT as default scheme (overrides Identity cookies for API auth)
+// JWT Auth
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -79,12 +81,12 @@ builder.Services.ConfigureApplicationCookie(o =>
     };
 });
 
-// Add CORS
+// CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.WithOrigins("http://localhost:5173", "https://localhost:5173", 
+        policy.WithOrigins("http://localhost:5173", "https://localhost:5173",
                           "http://localhost:4173", "https://localhost:4173",
                           "http://localhost:5174", "https://localhost:5174",
                           "http://localhost:4174", "https://localhost:4174",
@@ -96,20 +98,20 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Register OCR Service
-builder.Services.AddScoped<ExpenseTracker.Api.Services.IOcrService, ExpenseTracker.Api.Services.TesseractOcrService>();
+// OCR options + pooling
+builder.Services.Configure<OcrOptions>(builder.Configuration.GetSection("Ocr"));
+builder.Services.AddSingleton<ITesseractEnginePool, TesseractEnginePool>();
+builder.Services.AddScoped<IOcrService, TesseractOcrService>();
 
 builder.Services.AddAuthorization();
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        // Configure JSON serialization to use camelCase
-        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
-    });
+builder.Services.AddControllers().AddJsonOptions(o =>
+{
+    o.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+});
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    // If you already call AddSwaggerGen() above, replace that call with this block (or merge).
     var scheme = new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -160,17 +162,13 @@ try
 
     // Use CORS
     app.UseCors("AllowReactApp");
-
     app.UseRouting();
     app.UseAuthentication();
     app.UseAuthorization();
-
     app.MapStaticAssets();
-    app.MapRazorPages()
-       .WithStaticAssets();
+    app.MapRazorPages().WithStaticAssets();
     app.MapControllers();
     await DbSeeder.SeedAsync(app.Services);
-
     app.Run();
 }
 catch (Exception ex)
