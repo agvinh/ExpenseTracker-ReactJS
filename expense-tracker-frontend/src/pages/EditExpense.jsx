@@ -14,11 +14,14 @@ import {
   Grid,
   Alert,
   CircularProgress,
-  Avatar
+  Avatar,
+  Chip,
+  Stack
 } from "@mui/material";
-import { Save, ArrowBack } from "@mui/icons-material";
+import { Save, ArrowBack, AutoAwesome, PhotoCamera } from "@mui/icons-material";
 import api from "../api/axios";
 import { formatAmountDisplay, parseAmountToNumber } from "../utils/currency";
+import { extractAmountFromImage, formatExtractedAmount } from "../services/ocrService";
 
 // Get API base URL without /api suffix for static files
 const API_BASE_URL = import.meta.env.VITE_API_BASE.replace('/api', '');
@@ -32,6 +35,8 @@ export default function EditExpense() {
   const [expense, setExpense] = useState(null);
   const [alert, setAlert] = useState({ show: false, message: '', severity: 'success' });
   const [newImage, setNewImage] = useState(null);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrResult, setOcrResult] = useState(null);
 
   // Dynamic validation schema with translations
   const createSchema = () => {
@@ -171,10 +176,39 @@ export default function EditExpense() {
     }
   };
 
-  const handleImageChange = (event) => {
+  const handleImageChange = async (event) => {
     const file = event.target.files[0];
     if (file) {
       setNewImage(file);
+      await handleOcrExtraction(file);
+    }
+  };
+
+  // Handle OCR extraction
+  const handleOcrExtraction = async (file) => {
+    if (!file) return;
+    
+    setOcrLoading(true);
+    setOcrResult(null);
+    
+    try {
+      const result = await extractAmountFromImage(file);
+      setOcrResult(result);
+      
+      if (result.success && result.extractedAmount) {
+        // Auto-fill the amount field
+        const formattedAmount = formatExtractedAmount(result.extractedAmount, i18n.language);
+        setValue("amount", formattedAmount);
+      }
+    } catch (error) {
+      console.error('OCR failed:', error);
+      setAlert({
+        show: true,
+        message: t("ocrFailed") || "Failed to extract amount from image",
+        severity: 'error'
+      });
+    } finally {
+      setOcrLoading(false);
     }
   };
 
