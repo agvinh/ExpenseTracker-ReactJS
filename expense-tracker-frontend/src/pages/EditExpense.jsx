@@ -177,31 +177,41 @@ export default function EditExpense() {
   };
 
   const handleImageChange = async (event) => {
+    console.log('🔍 EditExpense: handleImageChange called', event.target.files);
     const file = event.target.files[0];
     if (file) {
+      console.log('📁 EditExpense: File selected:', file.name, file.size, 'bytes');
       setNewImage(file);
       await handleOcrExtraction(file);
+    } else {
+      console.warn('⚠️ EditExpense: No file selected');
     }
   };
 
   // Handle OCR extraction
   const handleOcrExtraction = async (file) => {
-    if (!file) return;
+    if (!file) {
+      console.warn('🚫 EditExpense: handleOcrExtraction called without file');
+      return;
+    }
     
+    console.log('🔄 EditExpense: Starting OCR extraction for:', file.name);
     setOcrLoading(true);
     setOcrResult(null);
     
     try {
       const result = await extractAmountFromImage(file);
+      console.log('✅ EditExpense: OCR result:', result);
       setOcrResult(result);
       
       if (result.success && result.extractedAmount) {
         // Auto-fill the amount field
         const formattedAmount = formatExtractedAmount(result.extractedAmount, i18n.language);
+        console.log('💰 EditExpense: Auto-filling amount:', formattedAmount);
         setValue("amount", formattedAmount);
       }
     } catch (error) {
-      console.error('OCR failed:', error);
+      console.error('❌ EditExpense: OCR failed:', error);
       setAlert({
         show: true,
         message: t("ocrFailed") || "Failed to extract amount from image",
@@ -209,6 +219,7 @@ export default function EditExpense() {
       });
     } finally {
       setOcrLoading(false);
+      console.log('🏁 EditExpense: OCR extraction finished');
     }
   };
 

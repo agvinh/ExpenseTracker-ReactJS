@@ -138,6 +138,18 @@ public class ExpensesController : ControllerBase
     }
 
     // OCR endpoint để extract amount từ image
+    /// <summary>
+    /// Extracts the amount from an uploaded image using OCR (Optical Character Recognition).
+    /// </summary>
+    /// <param name="file">The image file containing the amount to be extracted.</param>
+    /// <returns>
+    /// An <see cref="ActionResult{OcrResultDto}"/> containing the OCR extraction result, including success status,
+    /// extracted amount, possible amounts, and any error message.
+    /// Returns <c>BadRequest</c> if no file is provided.
+    /// </returns>
+    /// <remarks>
+    /// The maximum allowed file size is 20 MB. The uploaded file is temporarily saved and deleted after processing.
+    /// </remarks>
     [HttpPost("extract-amount")]
     [RequestSizeLimit(20_000_000)] // 20 MB
     public async Task<ActionResult<OcrResultDto>> ExtractAmountFromImage(IFormFile file)
