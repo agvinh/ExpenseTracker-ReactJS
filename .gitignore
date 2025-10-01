@@ -438,3 +438,12 @@ bundle
 **/wwwroot/lib
 **/wwwroot/uploads
 **/*.csproj.user
+
+### OCR and Logging files ###
+# Tesseract training data (large files, download separately)
+**/tessdata/
+# Application log files
+*.log
+
+### ImageMagick temp files ###
+magick-*

@@ -1,11 +1,13 @@
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Options;
 using Tesseract;
+using ImageMagick;
 
 namespace ExpenseTracker.Api.Services;
 
 public interface IOcrService
 {
-    Task<OcrResult> ExtractAmountFromImageAsync(string imagePath);
+    Task<OcrResult> ExtractAmountFromImageAsync(string imagePath, CancellationToken cancellationToken = default);
 }
 
 public class OcrResult
@@ -19,68 +21,190 @@ public class OcrResult
 
 public class TesseractOcrService : IOcrService
 {
+    private readonly ITesseractEnginePool _enginePool;
     private readonly ILogger<TesseractOcrService> _logger;
+    private readonly OcrOptions _options;
 
-    public TesseractOcrService(ILogger<TesseractOcrService> logger)
+    public TesseractOcrService(IOptions<OcrOptions> opts, ITesseractEnginePool enginePool, ILogger<TesseractOcrService> logger)
     {
         _logger = logger;
+        _enginePool = enginePool;
+        _options = opts.Value;
     }
 
-    public async Task<OcrResult> ExtractAmountFromImageAsync(string imagePath)
+    public async Task<OcrResult> ExtractAmountFromImageAsync(string imagePath, CancellationToken cancellationToken = default)
     {
         return await Task.Run(() =>
         {
+            TesseractEngineRent? rented = null;
             try
             {
-                // Sử dụng Tesseract.NET để đọc text từ ảnh
-                using var engine = new TesseractEngine(@"./tessdata", "eng+vie", EngineMode.Default);
-                
-                // Configure Tesseract for better number recognition
+                rented = _enginePool.Rent(cancellationToken);
+                var engine = rented.Engine;
+
+                // Configure Tesseract cho nhận dạng số & từ khóa VN/EN
                 engine.SetVariable("tessedit_char_whitelist", "0123456789.,VNDvndđĐdongDONGtổngTỔNGtotalTOTALsumSUMthànhTHÀNHtiềnTIỀNtoánTOÁNpaymentPAYMENTcộngCỘNG ");
                 engine.SetVariable("classify_bln_numeric_mode", "1");
-                
-                using var img = Pix.LoadFromFile(imagePath);
-                
-                // Preprocess image for better OCR results
-                using var processedImg = PreprocessImage(img);
-                using var page = engine.Process(processedImg);
-            
-            var rawText = page.GetText();
-            _logger.LogInformation("OCR Raw Text: {RawText}", rawText);
 
-            var result = new OcrResult
+                cancellationToken.ThrowIfCancellationRequested();
+
+                Pix processedImg;
+                if (_options.EnableImageMagickPreprocessing)
+                {
+                    _logger.LogDebug("Using ImageMagick preprocessing for {ImagePath}", imagePath);
+                    processedImg = PreprocessImageWithMagick(imagePath);
+                }
+                else
+                {
+                    _logger.LogDebug("Using basic Tesseract preprocessing for {ImagePath}", imagePath);
+                    using var img = Pix.LoadFromFile(imagePath);
+                    processedImg = PreprocessImageBasic(img);
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+                using (processedImg)
+                using (var page = engine.Process(processedImg))
+                {
+                    var rawText = page.GetText();
+                    _logger.LogInformation("OCR Raw Text: {RawText}", rawText);
+
+                    var result = new OcrResult { RawText = rawText, Success = true };
+                    var amounts = ExtractAmountsFromText(rawText);
+                    result.PossibleAmounts = amounts;
+                    result.ExtractedAmount = DetermineMainAmount(amounts, rawText);
+                    return result;
+                }
+            }
+            catch (OperationCanceledException)
             {
-                RawText = rawText,
-                Success = true
-            };
-
-            // Extract possible amounts using regex patterns
-            var amounts = ExtractAmountsFromText(rawText);
-            result.PossibleAmounts = amounts;
-
-            // Try to determine the most likely total amount
-            result.ExtractedAmount = DetermineMainAmount(amounts, rawText);
-
-                return result;
+                _logger.LogWarning("OCR operation cancelled for image {ImagePath}", imagePath);
+                return new OcrResult { Success = false, ErrorMessage = "OCR cancelled" };
+            }
+            catch (TimeoutException tex)
+            {
+                _logger.LogWarning(tex, "Timeout obtaining OCR engine for image {ImagePath}", imagePath);
+                return new OcrResult { Success = false, ErrorMessage = tex.Message };
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "OCR processing failed for image: {ImagePath}", imagePath);
-                return new OcrResult
-                {
-                    Success = false,
-                    ErrorMessage = ex.Message
-                };
+                return new OcrResult { Success = false, ErrorMessage = ex.Message };
             }
-        });
+            finally
+            {
+                rented?.Dispose(); // trả engine về pool
+            }
+        }, cancellationToken);
+    }
+
+    /// <summary>
+    /// Advanced image preprocessing using ImageMagick for better OCR accuracy.
+    /// </summary>
+    private Pix PreprocessImageWithMagick(string imagePath)
+    {
+        try
+        {
+            var preprocessedBytes = PreprocessImageBytes(File.ReadAllBytes(imagePath));
+            return Pix.LoadFromMemory(preprocessedBytes);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "ImageMagick preprocessing failed for {ImagePath}, falling back to basic preprocessing", imagePath);
+            using var img = Pix.LoadFromFile(imagePath);
+            return PreprocessImageBasic(img);
+        }
+    }
+
+    /// <summary>
+    /// ImageMagick preprocessing pipeline: orientation, grayscale, contrast, deskew, resize, threshold.
+    /// </summary>
+    private byte[] PreprocessImageBytes(byte[] input)
+    {
+        using var img = new MagickImage(input);
+        
+        // Auto-orient based on EXIF data
+        img.AutoOrient();
+        _logger.LogDebug("Applied auto-orientation");
+
+        // Convert to grayscale
+        img.ColorSpace = ColorSpace.Gray;
+        _logger.LogDebug("Converted to grayscale");
+
+        // Enhance contrast by stretching histogram (remove extreme 1% black/white points)
+        img.ContrastStretch(new Percentage(1));
+        _logger.LogDebug("Applied contrast stretch");
+
+        // Attempt to correct skew (up to 40 degrees)
+        try
+        {
+            img.Deskew(new Percentage(40));
+            _logger.LogDebug("Applied deskew correction");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Deskew failed, continuing without skew correction");
+        }
+
+        // Resize if image is too small (OCR works better on larger images)
+        if (img.Width < 800 || img.Height < 600)
+        {
+            var scaleFactor = Math.Max(800.0 / img.Width, 600.0 / img.Height);
+            img.FilterType = FilterType.Triangle; // Good balance of quality/speed
+            img.Resize(new Percentage(scaleFactor * 100));
+            _logger.LogDebug("Resized image by factor {ScaleFactor}", scaleFactor);
+        }
+
+        // Apply binary threshold for cleaner text (60% threshold)
+        img.Threshold(new Percentage(60));
+        _logger.LogDebug("Applied binary threshold");
+
+        // Ensure PNG format for compatibility
+        img.Format = MagickFormat.Png;
+        
+        var result = img.ToByteArray();
+        _logger.LogDebug("ImageMagick preprocessing completed, output size: {Size} bytes", result.Length);
+        return result;
+    }
+
+    /// <summary>
+    /// Basic preprocessing using only Tesseract/Leptonica (fallback method).
+    /// </summary>
+    private Pix PreprocessImageBasic(Pix originalImage)
+    {
+        try
+        {
+            // Convert to grayscale for better OCR
+            var grayscale = originalImage.ConvertRGBToGray();
+
+            // Scale image if too small (improves OCR accuracy)
+            var width = grayscale.Width; 
+            var height = grayscale.Height;
+            
+            if (width < 800 || height < 600)
+            {
+                var scale = Math.Max(800f / width, 600f / height);
+                var scaled = grayscale.Scale(scale, scale);
+                grayscale.Dispose();
+                _logger.LogDebug("Basic preprocessing: resized by {Scale}", scale);
+                return scaled;
+            }
+            
+            _logger.LogDebug("Basic preprocessing: converted to grayscale");
+            return grayscale;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Basic preprocessing failed, using original image");
+            return originalImage.Clone();
+        }
     }
 
     private List<decimal> ExtractAmountsFromText(string text)
     {
         var amounts = new List<decimal>();
-        
+
         _logger.LogInformation("Processing OCR text: {Text}", text);
-        
+
         // Enhanced Vietnamese currency patterns with better recognition
         var vietnamesePatterns = new[]
         {
@@ -91,7 +215,7 @@ public class TesseractOcrService : IOcrService
             @"(?:VND|VNĐ|đ|D)\s*(\d{1,3}(?:\.\d{3})+)",                  // VND 510.000
             
             // Context-based patterns (looking for keywords)
-            @"(?:TỔNG|TOTAL|SUM|THÀNH TIỀN|THANH TOÁN|PAYMENT|CỘNG|TỔNG CỘNG)[\s:]*(\d{1,3}(?:\.\d{3})+)", 
+            @"(?:TỔNG|TOTAL|SUM|THÀNH TIỀN|THANH TOÁN|PAYMENT|CỘNG|TỔNG CỘNG)[\s:]*(\d{1,3}(?:\.\d{3})+)",
             @"(?:TỔNG|TOTAL|SUM|THÀNH TIỀN|THANH TOÁN|PAYMENT|CỘNG|TỔNG CỘNG)[\s:]*(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?)",
             
             // Amount followed by currency
@@ -116,7 +240,7 @@ public class TesseractOcrService : IOcrService
             {
                 var amountStr = match.Groups[1].Value;
                 _logger.LogInformation("Found Vietnamese pattern match: {AmountStr}", amountStr);
-                
+
                 if (TryParseVietnameseAmount(amountStr, out decimal amount))
                 {
                     _logger.LogInformation("Successfully parsed amount: {Amount}", amount);
@@ -151,18 +275,18 @@ public class TesseractOcrService : IOcrService
     private decimal? DetermineMainAmount(List<decimal> amounts, string rawText)
     {
         if (!amounts.Any()) return null;
-        
-        _logger.LogInformation("Determining main amount from {Count} candidates: {Amounts}", 
+
+        _logger.LogInformation("Determining main amount from {Count} candidates: {Amounts}",
             amounts.Count, string.Join(", ", amounts));
 
         // Enhanced keywords for Vietnamese receipts
-        var totalKeywords = new[] 
-        { 
-            "tổng", "total", "sum", "thành tiền", "thanh toán", "payment", 
+        var totalKeywords = new[]
+        {
+            "tổng", "total", "sum", "thành tiền", "thanh toán", "payment",
             "cộng", "tổng cộng", "tong", "thanh toan", "tong cong",
             "amount", "số tiền", "so tien", "tiền", "tien"
         };
-        
+
         // Score each amount based on context
         var scoredAmounts = amounts.Select(amount => new
         {
@@ -170,12 +294,12 @@ public class TesseractOcrService : IOcrService
             Score = CalculateAmountScore(amount, rawText, totalKeywords)
         }).OrderByDescending(x => x.Score).ThenByDescending(x => x.Amount).ToList();
 
-        _logger.LogInformation("Amount scores: {Scores}", 
+        _logger.LogInformation("Amount scores: {Scores}",
             string.Join(", ", scoredAmounts.Select(s => $"{s.Amount}:{s.Score}")));
 
         var selectedAmount = scoredAmounts.First().Amount;
         _logger.LogInformation("Selected main amount: {Amount}", selectedAmount);
-        
+
         return selectedAmount;
     }
 
@@ -183,65 +307,37 @@ public class TesseractOcrService : IOcrService
     {
         int score = 0;
         var amountStr = amount.ToString("F0");
-        var vietnameseAmountStr = amount.ToString("#,##0", new System.Globalization.CultureInfo("vi-VN")).Replace(",", ".");
-        
+        var vnAmount = amount.ToString("#,##0", new System.Globalization.CultureInfo("vi-VN")).Replace(",", ".");
+
         // Higher score for larger amounts (assuming main total is usually the largest)
         if (amount >= 100000) score += 30;      // >= 100k VND
         else if (amount >= 50000) score += 20;  // >= 50k VND  
         else if (amount >= 10000) score += 10;  // >= 10k VND
 
         // Look for keywords near this amount
-        foreach (var keyword in totalKeywords)
+        foreach (var k in totalKeywords)
         {
-            var keywordIndex = rawText.IndexOf(keyword, StringComparison.OrdinalIgnoreCase);
-            if (keywordIndex >= 0)
-            {
-                // Check both standard and Vietnamese formatted versions
-                var amountIndex1 = rawText.IndexOf(amountStr, StringComparison.OrdinalIgnoreCase);
-                var amountIndex2 = rawText.IndexOf(vietnameseAmountStr, StringComparison.OrdinalIgnoreCase);
-                
-                var closestAmountIndex = -1;
-                if (amountIndex1 >= 0 && amountIndex2 >= 0)
-                {
-                    closestAmountIndex = Math.Abs(amountIndex1 - keywordIndex) < Math.Abs(amountIndex2 - keywordIndex) 
-                        ? amountIndex1 : amountIndex2;
-                }
-                else if (amountIndex1 >= 0)
-                {
-                    closestAmountIndex = amountIndex1;
-                }
-                else if (amountIndex2 >= 0)
-                {
-                    closestAmountIndex = amountIndex2;
-                }
+            var idx = rawText.IndexOf(k, StringComparison.OrdinalIgnoreCase);
+            if (idx < 0) continue;
 
-                if (closestAmountIndex >= 0)
-                {
-                    var distance = Math.Abs(closestAmountIndex - keywordIndex);
-                    if (distance < 50) score += 50;      // Very close to keyword
-                    else if (distance < 100) score += 30; // Close to keyword
-                    else if (distance < 200) score += 10; // Somewhat close
-                }
+            // Check both standard and Vietnamese formatted versions
+            var positions = new[] { rawText.IndexOf(amountStr, StringComparison.OrdinalIgnoreCase), rawText.IndexOf(vnAmount, StringComparison.OrdinalIgnoreCase) }.Where(i => i >= 0);
+            foreach (var p in positions)
+            {
+                var d = Math.Abs(p - idx);
+                if (d < 50) score += 50;      // Very close to keyword
+                else if (d < 100) score += 30; // Close to keyword
+                else if (d < 200) score += 10; // Somewhat close
             }
         }
 
         // Bonus for amounts that appear at the end (likely to be totals)
-        var textLength = rawText.Length;
-        var amountPositions = new List<int>();
-        
-        var pos1 = rawText.LastIndexOf(amountStr, StringComparison.OrdinalIgnoreCase);
-        var pos2 = rawText.LastIndexOf(vietnameseAmountStr, StringComparison.OrdinalIgnoreCase);
-        
-        if (pos1 >= 0) amountPositions.Add(pos1);
-        if (pos2 >= 0) amountPositions.Add(pos2);
-        
-        if (amountPositions.Any())
+        var last = new[] { rawText.LastIndexOf(amountStr, StringComparison.OrdinalIgnoreCase), rawText.LastIndexOf(vnAmount, StringComparison.OrdinalIgnoreCase) }.Max();
+        if (last >= 0)
         {
-            var lastPosition = amountPositions.Max();
-            var relativePosition = (double)lastPosition / textLength;
-            
-            if (relativePosition > 0.8) score += 20;      // In last 20% of text
-            else if (relativePosition > 0.6) score += 10; // In last 40% of text
+            var rel = (double)last / rawText.Length;
+            if (rel > 0.8) score += 20;      // In last 20% of text
+            else if (rel > 0.6) score += 10; // In last 40% of text
         }
 
         return score;
@@ -250,34 +346,27 @@ public class TesseractOcrService : IOcrService
     private bool TryParseVietnameseAmount(string input, out decimal result)
     {
         result = 0;
-        
+
         try
         {
-            var cleaned = input.Trim();
-            _logger.LogDebug("Parsing Vietnamese amount: '{Input}' -> '{Cleaned}'", input, cleaned);
+            var cleaned = Regex.Replace(input.Trim(), @"[^\d\.,]", "");
 
-            // Remove any non-numeric characters except dots, commas
-            cleaned = Regex.Replace(cleaned, @"[^\d\.,]", "");
-            
             if (string.IsNullOrEmpty(cleaned))
                 return false;
 
             // Check if this looks like Vietnamese format (dots as thousands separator)
             // Examples: 510.000, 1.234.567, 123.456.789
-            var dotCount = cleaned.Count(c => c == '.');
-            var commaCount = cleaned.Count(c => c == ',');
-            
-            if (dotCount >= 1 && commaCount == 0)
+            var dot = cleaned.Count(c => c == '.');
+            var comma = cleaned.Count(c => c == ',');
+
+            if (dot >= 1 && comma == 0 && IsValidVietnameseThousandFormat(cleaned))
             {
                 // Likely Vietnamese format: 510.000 -> 510000
                 // Check if dots are in correct positions (every 3 digits from right)
-                if (IsValidVietnameseThousandFormat(cleaned))
-                {
-                    cleaned = cleaned.Replace(".", "");
-                    _logger.LogDebug("Vietnamese thousands format detected: {Cleaned}", cleaned);
-                }
+                cleaned = cleaned.Replace(".", "");
+                _logger.LogDebug("Vietnamese thousands format detected: {Cleaned}", cleaned);
             }
-            else if (dotCount >= 1 && commaCount == 1 && cleaned.LastIndexOf(',') > cleaned.LastIndexOf('.'))
+            else if (dot >= 1 && comma == 1 && cleaned.LastIndexOf(',') > cleaned.LastIndexOf('.'))
             {
                 // Vietnamese format with decimals: 123.456,78 -> 123456.78
                 var commaPos = cleaned.LastIndexOf(',');
@@ -286,10 +375,10 @@ public class TesseractOcrService : IOcrService
                 cleaned = integerPart + "." + decimalPart;
                 _logger.LogDebug("Vietnamese decimal format detected: {Cleaned}", cleaned);
             }
-            else if (commaCount >= 1 && dotCount <= 1)
+            else if (comma >= 1)
             {
                 // Could be English format: 123,456.78 -> 123456.78
-                if (dotCount == 1 && cleaned.LastIndexOf('.') > cleaned.LastIndexOf(','))
+                if (dot == 1 && cleaned.LastIndexOf('.') > cleaned.LastIndexOf(','))
                 {
                     // English format
                     cleaned = cleaned.Replace(",", "");
@@ -303,7 +392,7 @@ public class TesseractOcrService : IOcrService
 
             var success = decimal.TryParse(cleaned, out result);
             _logger.LogDebug("Parse result: Success={Success}, Value={Result}", success, result);
-            
+
             return success && result > 0;
         }
         catch (Exception ex)
@@ -318,53 +407,48 @@ public class TesseractOcrService : IOcrService
         // Check if dots are positioned correctly for Vietnamese thousands format
         // Valid: 123.456, 1.234.567, 12.345.678
         // Invalid: 12.34, 1234.5
-        
+
         var parts = input.Split('.');
         if (parts.Length < 2) return false;
-        
+
         // First part can be 1-3 digits
-        if (parts[0].Length == 0 || parts[0].Length > 3) return false;
-        
+        if (parts[0].Length is 0 or > 3) return false;
+
         // All other parts must be exactly 3 digits
         for (int i = 1; i < parts.Length; i++)
         {
             if (parts[i].Length != 3) return false;
         }
-        
+
         return true;
     }
 
     private bool TryParseEnglishAmount(string input, out decimal result)
     {
         result = 0;
-        
+
         try
         {
-            var cleaned = input.Trim();
-            
-            // Remove currency symbols
-            cleaned = Regex.Replace(cleaned, @"[^\d\.,]", "");
-            
+            var cleaned = Regex.Replace(input.Trim(), @"[^\d\.,]", "");
+
             if (string.IsNullOrEmpty(cleaned))
                 return false;
-            
+
             // English format: 123,456.78 -> 123456.78
             // Assume comma is thousands separator, dot is decimal separator
-            var lastDotIndex = cleaned.LastIndexOf('.');
-            var lastCommaIndex = cleaned.LastIndexOf(',');
-            
-            if (lastDotIndex > lastCommaIndex)
+            var lastDot = cleaned.LastIndexOf('.');
+            var lastComma = cleaned.LastIndexOf(',');
+
+            if (lastDot > lastComma)
             {
                 // Standard English format
                 cleaned = cleaned.Replace(",", "");
             }
-            else if (lastCommaIndex > lastDotIndex)
+            else if (lastComma > lastDot)
             {
                 // European format: 123.456,78 -> 123456.78
                 var commaPos = cleaned.LastIndexOf(',');
-                var integerPart = cleaned.Substring(0, commaPos).Replace(".", "");
-                var decimalPart = cleaned.Substring(commaPos + 1);
-                cleaned = integerPart + "." + decimalPart;
+                cleaned = cleaned[..commaPos].Replace(".", "") + "." + cleaned[(commaPos + 1)..];
             }
             else
             {
@@ -377,34 +461,6 @@ public class TesseractOcrService : IOcrService
         catch
         {
             return false;
-        }
-    }
-
-    private Pix PreprocessImage(Pix originalImage)
-    {
-        try
-        {
-            // Convert to grayscale for better OCR
-            var grayscale = originalImage.ConvertRGBToGray();
-            
-            // Scale image if too small (improves OCR accuracy)
-            var width = grayscale.Width;
-            var height = grayscale.Height;
-            
-            if (width < 800 || height < 600)
-            {
-                var scaleFactor = Math.Max(800.0f / width, 600.0f / height);
-                var scaledImage = grayscale.Scale(scaleFactor, scaleFactor);
-                grayscale.Dispose();
-                return scaledImage;
-            }
-            
-            return grayscale;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Image preprocessing failed, using original image");
-            return originalImage.Clone();
         }
     }
 }

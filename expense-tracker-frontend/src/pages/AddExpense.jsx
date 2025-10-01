@@ -60,36 +60,47 @@ export default function AddExpense() {
 
   // Handle OCR extraction
   const handleOcrExtraction = async (file) => {
-    if (!file) return;
+    if (!file) {
+      console.warn('🚫 AddExpense: handleOcrExtraction called without file');
+      return;
+    }
     
+    console.log('🔄 AddExpense: Starting OCR extraction for:', file.name);
     setOcrLoading(true);
     setOcrResult(null);
     setServerError("");
     
     try {
       const result = await extractAmountFromImage(file);
+      console.log('✅ AddExpense: OCR result:', result);
       setOcrResult(result);
       
       if (result.success && result.extractedAmount) {
         // Auto-fill the amount field
         const formattedAmount = formatExtractedAmount(result.extractedAmount, currentLocale);
+        console.log('💰 AddExpense: Auto-filling amount:', formattedAmount);
         setValue("amountDisplay", formattedAmount);
       }
     } catch (error) {
-      console.error('OCR failed:', error);
+      console.error('❌ AddExpense: OCR failed:', error);
       setServerError(t("ocrFailed") || "Failed to extract amount from image");
     } finally {
       setOcrLoading(false);
+      console.log('🏁 AddExpense: OCR extraction finished');
     }
   };
 
   // Handle file selection
   const handleFileChange = async (event) => {
+    console.log('🔍 AddExpense: handleFileChange called', event.target.files);
     const file = event.target.files[0];
     setSelectedFile(file);
     
     if (file) {
+      console.log('📁 AddExpense: File selected:', file.name, file.size, 'bytes');
       await handleOcrExtraction(file);
+    } else {
+      console.warn('⚠️ AddExpense: No file selected');
     }
   };
 
@@ -284,8 +295,9 @@ export default function AddExpense() {
                   type="file"
                   hidden
                   accept="image/*"
-                  onChange={handleFileChange}
-                  {...register("file")}
+                  {...register("file", {
+                    onChange: handleFileChange
+                  })}
                 />
               </Button>
 
