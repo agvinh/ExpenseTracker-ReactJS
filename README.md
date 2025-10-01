@@ -1,240 +1,301 @@
-# ExpenseTracker Solution / Giải pháp ExpenseTracker
+# ExpenseTracker Solution 
 
-> English follows Vietnamese (Song ngữ: VI ở trên, EN ở dưới).
-
----
-## (VI) Tổng quan
-Giải pháp gồm 2 phần chính:
-1. **Backend** (ASP.NET Core /.NET 9 Web API) – Đăng ký/đăng nhập (JWT), CRUD chi tiêu, upload ảnh, phân trang, Identity + EF Core.
-2. **Frontend** (React + Vite) – SPA sử dụng Material UI, i18next (EN/VI), react-hook-form + zod, Axios.
+> *Comprehensive expense management solution with OCR integration*  
 
 ---
-## 1. Cấu trúc thư mục (rút gọn)
+
+## 1. Overview  
+
+ExpenseTracker is a comprehensive personal expense management solution featuring:  
+
+- ✅ JWT Authentication (Register/Login)  
+- ✅ CRUD Operations for expenses  
+- ✅ Bill image upload & management  
+- ✅ OCR automatic amount extraction (Tesseract)  
+- ✅ Multi-language support (EN/VI)  
+- ✅ Locale-aware currency formatting  
+- ✅ Responsive Material-UI design  
+
+### Tech Stack  
 ```
-/ExpenseTracker.Api            # ASP.NET Core API (.NET 9)
-  /Controllers
-  /Data (DbContext, Entities, Seeder, Migrations)
-  /Dtos
-  /wwwroot (uploads)
-/ExpenseTracker.Web (nếu dùng Razor Pages kết hợp)  
-/expense-tracker-frontend     # React (Vite)
-  /src
-  /public
-README.md
+Backend:  .NET 9.0 + ASP.NET Core Web API + EF Core + SQL Server
+Frontend: React 18 + Vite + MUI + React Hook Form + Zod
+OCR:      Tesseract 5.2.0 (English + Vietnamese)
+Auth:     JWT Bearer Token
+I18n:     react-i18next
 ```
+
+### 1.1 Technologies Used  
+- **Backend**: .NET 9.0 + ASP.NET Core Web API + Entity Framework Core + SQL Server  
+- **Frontend**: React 18 + Vite + Material-UI + React Hook Form + Zod  
+- **OCR**: Tesseract 5.2.0 (English + Vietnamese)  
+- **Authentication**: JWT Bearer Token  
+- **Internationalization**: react-i18next (EN/VI)  
+
+### 1.2 Solution Structure  
+```
+ExpenseTracker.sln
+├── ExpenseTracker.Api/          # Backend (ASP.NET Core Web API)
+└── expense-tracker-frontend/    # Frontend (React + Vite)
+```  
 
 ---
-## 2. Backend
-### 2.1 Cấu hình
-`appsettings.json` hoặc user-secrets:
-```json
-"ConnectionStrings": {"DefaultConnection": "Server=localhost;Database=ExpenseTrackerDb;Trusted_Connection=True;TrustServerCertificate=True;"},
-"Jwt": {"Key": "<Chuỗi >= 32 ký tự hoặc Base64 32 bytes>", "Issuer": "ExpenseTracker"}
-```
-> Không sinh key mới mỗi lần chạy.
 
-### 2.2 Chạy cục bộ
-```bash
-cd ExpenseTracker.Api
-# dotnet ef database update (nếu chưa có DB)
-dotnet run
-```
-Swagger: `https://localhost:<sslPort>/swagger`.
+## 2. System Architecture  
 
-### 2.3 Migrations
-```bash
-dotnet tool install --global dotnet-ef
-cd ExpenseTracker.Api
-dotnet ef migrations add <Name>
-dotnet ef database update
+### 2.1 Architecture Overview  
+```
+┌─────────────────┐    HTTP/HTTPS    ┌─────────────────┐
+│   React SPA     │ ◄──────────────► │  ASP.NET Core   │
+│   (Frontend)    │                  │   Web API       │
+│                 │                  │   (Backend)     │
+├─────────────────┤                  ├─────────────────┤
+│ • Material-UI   │                  │ • Controllers   │
+│ • React Router  │                  │ • Services      │
+│ • Axios Client  │                  │ • OCR Engine    │
+│ • i18next       │                  │ • EF Core       │
+└─────────────────┘                  └─────────────────┘
+                                               │
+                                               ▼
+                                     ┌─────────────────┐
+                                     │   SQL Server    │
+                                     │   Database      │
+                                     └─────────────────┘
 ```
 
-### 2.4 Debug
-- Đặt breakpoint controller / dịch vụ.  
-- Gọi qua Swagger (Authorize bằng JWT).  
-- 302 -> kiểm tra default auth scheme (JWT).
+### 2.2 Main Data Flow  
+- User Input → Form Validation → API → Database → UI Update  
+- Image Upload → OCR Processing → Amount Extraction → Auto-fill Form  
 
 ---
-## 3. Frontend (React + Vite)
-### 3.1 Cấu hình môi trường
-`.env`:
-```
-VITE_API_BASE=https://localhost:7162/api
-```
-### 3.2 Chạy
-```bash
-cd expense-tracker-frontend
-npm install
-npm run dev
-npm run build   # tạo dist/
-```
-### 3.3 Debug
-- DevTools Network kiểm tra header Authorization.  
-- 401 -> đăng nhập lại hoặc triển khai refresh token.
 
----
-## 4. Quy trình JWT qua Swagger
-1. POST `/api/Auth/register` (1 lần).  
-2. POST `/api/Auth/login` -> lấy `token`.  
-3. Authorize -> nhập `Bearer <token>`.  
-4. Gọi API Expenses.  
-5. Upload: `POST /api/Expenses/{id}/bill-image`.
+## 3. Backend (ASP.NET Core Web API)  
 
----
-## 5. Triển khai IIS
-### 5.1 Backend
-```bash
-cd ExpenseTracker.Api
-dotnet publish -c Release -o ..\publish\api
-```
-- App Pool riêng (No Managed Code).  
-- Biến môi trường: ConnectionString, Jwt:Key, Jwt:Issuer.  
-- Quyền ghi thư mục `wwwroot/uploads` cho IIS_IUSRS.
-
-### 5.2 Frontend
-```bash
-cd expense-tracker-frontend
-npm run build
-```
-Copy `dist/` lên IIS, thêm `web.config` SPA fallback:
-```xml
-<?xml version="1.0"?>
-<configuration>
-  <system.webServer>
-    <rewrite>
-      <rules>
-        <rule name="SPA" stopProcessing="true">
-          <match url="^(?!.*(\.|__vite_ping)).*$" />
-          <action type="Rewrite" url="/index.html" />
-        </rule>
-      </rules>
-    </rewrite>
-  </system.webServer>
-</configuration>
-```
-### 5.3 CORS
-```csharp
-builder.Services.AddCors(o=>o.AddPolicy("frontend",p=>p.WithOrigins("https://your-frontend-domain").AllowAnyHeader().AllowAnyMethod()));
-app.UseCors("frontend");
-```
-### 5.4 Chung domain
-- Root: React dist.  
-- Application con `/api` trỏ API.  
-- `.env`: `VITE_API_BASE=https://domain.com/api`.
-
----
-## 6. Refresh Token (tuỳ chọn)
-- Bảng `RefreshTokens` (hash SHA256).  
-- Access token 15 phút; refresh 7–30 ngày.  
-- Endpoint `/api/Auth/refresh`, `/api/Auth/revoke`.
-
----
-## 7. Troubleshooting
-| Vấn đề | Nguyên nhân | Giải pháp |
-|--------|-------------|-----------|
-| 302 Redirect | Cookie auth challenge | Đặt default scheme = JWT |
-| 401 dù token đúng | Sai Jwt:Key | Đồng bộ key cấu hình |
-| 404 swagger.json | Swagger chỉ bật Dev | Bật ở Prod nếu cần |
-| Upload 500 | Thư mục / quyền | Tạo `wwwroot/uploads` + cấp quyền |
-| CORS lỗi | Khác domain | Thêm policy & `UseCors` |
-
----
-## 8. Scripts
-```bash
-# Backend
-dotnet watch run
-# Frontend
-npm run dev
-npm run build
-# DB
-dotnet ef migrations add <Name>
-dotnet ef database update
-```
-
----
-## 9. Định hướng
-Biểu đồ, export CSV/Excel, refresh token đầy đủ, roles, tests.
-
----
-## 10. License / Đóng góp
-- Thêm License (MIT …) nếu open-source.  
-- PR / Issues được hoan nghênh.  
-
----
-# (EN) Overview
-Two primary parts:
-1. **Backend** (ASP.NET Core /.NET 9 Web API) – JWT auth, Expense CRUD, image upload, pagination, Identity + EF Core.
-2. **Frontend** (React + Vite SPA) – MUI, i18next (EN/VI), react-hook-form + zod, Axios.
-
-## 1. Directory Structure (short)
+### 3.1 Project Structure  
 ```
 ExpenseTracker.Api/
-ExpenseTracker.Web/ (optional Razor Pages host)
-expense-tracker-frontend/
+├── Controllers/
+│   ├── AuthController.cs
+│   └── ExpensesController.cs
+├── Data/
+│   ├── AppDbContext.cs
+│   ├── DbSeeder.cs
+│   └── Migrations/
+├── Dtos/
+│   ├── ExpenseDto.cs
+│   ├── LoginDto.cs
+│   └── OcrResultDto.cs
+├── Services/
+│   └── TesseractOcrService.cs
+├── tessdata/
+│   ├── eng.traineddata
+│   └── vie.traineddata
+├── wwwroot/uploads/
+├── Program.cs
+└── ExpenseTracker.Api.csproj
+```  
+
+### 3.2 Database Schema  
+```sql
+Users:
+- Id (PK)
+- UserName
+- Email
+- PasswordHash
+- CreatedAt
+
+Expenses:
+- Id (PK)
+- UserId (FK → Users)
+- Amount (decimal(18,2))
+- Currency (nvarchar(3))
+- Category (nvarchar(50))
+- Description (ntext)
+- OccurredAt (datetime2)
+- BillImagePath (nvarchar(500))
+- CreatedAt
+- UpdatedAt
 ```
 
-## 2. Backend
-Config (`appsettings.json`):
-```json
-"ConnectionStrings": {"DefaultConnection": "Server=localhost;Database=ExpenseTrackerDb;Trusted_Connection=True;TrustServerCertificate=True;"},
-"Jwt": {"Key": "<>=32 chars or Base64 32 bytes>", "Issuer": "ExpenseTracker"}
+### 3.3 API Endpoints  
 ```
-Run:
-```bash
-cd ExpenseTracker.Api
-# dotnet ef database update
-dotnet run
+# Authentication
+POST /api/auth/register
+POST /api/auth/login
+
+# Expense CRUD
+GET    /api/expenses
+POST   /api/expenses
+GET    /api/expenses/{id}
+PUT    /api/expenses/{id}
+DELETE /api/expenses/{id}
+
+# File & OCR
+POST /api/expenses/{id}/bill-image
+POST /api/expenses/extract-amount
 ```
-Migrations:
-```bash
-dotnet ef migrations add <Name>
-dotnet ef database update
-```
-Debug via Swagger + breakpoints.
-
-## 3. Frontend
-Env:
-```
-VITE_API_BASE=https://localhost:7162/api
-```
-Run & build:
-```bash
-npm install
-npm run dev
-npm run build
-```
-
-## 4. JWT Flow (Swagger)
-1. Register -> 2. Login -> 3. Authorize -> 4. Call Expenses -> 5. Upload bill image.
-
-## 5. Deploy on IIS
-Backend publish:
-```bash
-dotnet publish -c Release -o ..\publish\api
-```
-Frontend build -> copy `dist/` + SPA fallback `web.config`.
-If different domains enable CORS. Same domain: host frontend root + API under `/api`.
-
-## 6. Optional Refresh Tokens
-Implement table, short-lived access token (15m), rotation on refresh.
-
-## 7. Troubleshooting
-| Issue | Cause | Fix |
-|-------|-------|-----|
-| 302 redirect | Cookie challenge | Set default auth = JWT |
-| 401 valid token | Wrong key | Sync Jwt:Key |
-| 404 swagger.json | Swagger only Dev | Enable in Prod if needed |
-| 500 upload | Missing folder/ACL | Create uploads + grant write |
-| CORS blocked | Cross origin | Add CORS policy |
-
-## 8. Useful Scripts
-See Vietnamese section above (same commands).
-
-## 9. Roadmap
-Charts, exports, full refresh token, roles, tests.
-
-## 10. License / Contributing
-Add license (MIT etc). PRs welcome.
 
 ---
-**Enjoy building!**
+
+## 4. Frontend (React + Vite)  
+
+### 4.1 Project Structure  
+```
+expense-tracker-frontend/
+├── public/
+│   └── vite.svg
+├── src/
+│   ├── api/axios.js
+│   ├── components/Navbar.jsx
+│   ├── pages/
+│   │   ├── Login.jsx
+│   │   ├── Register.jsx
+│   │   ├── Dashboard.jsx
+│   │   ├── AddExpense.jsx
+│   │   └── EditExpense.jsx
+│   ├── services/ocrService.js
+│   ├── utils/currency.js
+│   ├── App.jsx
+│   ├── i18n.js
+│   └── main.jsx
+├── package.json
+├── vite.config.js
+└── .env
+```  
+
+### 4.2 Features  
+- Multi-language support (EN/VI)  
+- Locale-aware currency formatting  
+- File upload + OCR auto-fill  
+- Responsive design (Material-UI)  
+- JWT token management  
+- Real-time form validation (React Hook Form + Zod)  
+
+---
+
+## 5. Development Environment Setup  
+
+### 5.1 System Requirements  
+- .NET 9.0 SDK  
+- Node.js 18+ & npm  
+- SQL Server (LocalDB or full version)  
+- VS Code or Visual Studio 2022  
+
+### 5.2 Backend Setup  
+```bash
+cd ExpenseTracker.Api
+dotnet restore
+dotnet ef database update
+dotnet run
+# → https://localhost:7162
+# → https://localhost:7162/swagger
+```
+
+### 5.3 Frontend Setup  
+```bash
+cd expense-tracker-frontend
+npm install
+echo "VITE_API_BASE=https://localhost:7162/api" > .env
+npm run dev
+# → http://localhost:5173
+```
+
+### 5.4 Development Workflow  
+```bash
+# Terminal 1 - Backend
+dotnet watch run
+
+# Terminal 2 - Frontend
+npm run dev
+```
+
+---
+
+## 6. Deployment  
+
+### 6.1 IIS Deployment  
+- **Backend**: Run `dotnet publish -c Release -o ..\publish`, deploy to IIS with "No Managed Code" setting  
+- **Frontend**: Run `npm run build`, copy `dist/` folder to IIS, add `web.config` for SPA fallback routing  
+
+### 6.2 Docker Deployment  
+- **Backend**: ASP.NET 9 base image + publish artifacts  
+- **Frontend**: Node build stage → Nginx serve stage  
+
+### 6.3 Cloud Deployment Options  
+- **Azure**: App Service + SQL Database + Static Web Apps  
+- **AWS**: Elastic Beanstalk + RDS + S3/CloudFront  
+
+---
+
+## 7. Troubleshooting  
+
+| Issue | Root Cause | Solution |
+|-------|------------|----------|
+| 302 Redirect | Cookie authentication challenge | Set default authentication scheme to JWT |
+| 401 Unauthorized | Wrong JWT key or token expired | Synchronize Jwt:Key configuration |
+| 404 swagger.json | Swagger only enabled in Development | Enable in Production if needed |
+| 500 Upload Error | Missing folder or insufficient permissions | Create `wwwroot/uploads` directory and grant write permissions |
+| CORS Error | Cross-origin request blocked | Add CORS policy configuration |
+| OCR Processing Failure | Missing tessdata files | Download eng/vie traineddata files |
+
+---
+
+## 8. Development Roadmap  
+
+- **Dashboard & Analytics**: Interactive charts and expense analytics  
+- **Data Export**: CSV/Excel export functionality  
+- **Enhanced Security**: Refresh tokens & role-based access control  
+- **Notifications**: Email notifications and alerts  
+- **Mobile Application**: React Native or Flutter mobile app  
+- **Advanced OCR**: Google Vision API integration, template-based extraction  
+- **Testing**: Unit tests, Integration tests, E2E testing  
+- **DevOps**: CI/CD pipeline with GitHub Actions  
+
+---
+
+## 9. Scripts Reference  
+
+### Backend Commands  
+```bash
+# Restore packages
+dotnet restore
+
+# Run migrations
+dotnet ef database update
+
+# Create new migration
+dotnet ef migrations add MigrationName
+
+# Run in watch mode
+dotnet watch run
+
+# Build for production
+dotnet publish -c Release
+```
+
+### Frontend Commands  
+```bash
+# Install dependencies
+npm install
+
+# Development server
+npm run dev
+
+# Production build
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+---
+
+## 10. License & Contributing  
+
+This project is licensed under the **Apache 2.0 License** — see [LICENSE](LICENSE) file for details.  
+
+**Contributions are welcome!** Please feel free to submit Pull Requests.
+
+---
+
+✨ **Happy Building!** ✨
