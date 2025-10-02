@@ -42,7 +42,7 @@ public class TesseractOcrService : IOcrService
                 rented = _enginePool.Rent(cancellationToken);
                 var engine = rented.Engine;
 
-                // Configure Tesseract cho nhận dạng số & từ khóa VN/EN
+                // Configure Tesseract for number & keyword recognition in Vietnamese/English
                 engine.SetVariable("tessedit_char_whitelist", "0123456789.,VNDvndđĐdongDONGtổngTỔNGtotalTOTALsumSUMthànhTHÀNHtiềnTIỀNtoánTOÁNpaymentPAYMENTcộngCỘNG ");
                 engine.SetVariable("classify_bln_numeric_mode", "1");
 
@@ -92,7 +92,7 @@ public class TesseractOcrService : IOcrService
             }
             finally
             {
-                rented?.Dispose(); // trả engine về pool
+                rented?.Dispose(); // return engine to pool
             }
         }, cancellationToken);
     }

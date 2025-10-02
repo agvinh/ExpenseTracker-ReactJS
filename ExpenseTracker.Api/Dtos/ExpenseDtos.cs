@@ -7,6 +7,7 @@ public record ExpenseCreateDto(
     string? Description
 );
 
+// BillImageUrl holds a relative path like /uploads/filename.ext if image exists.
 public record ExpenseDto(
     int Id,
     DateTime OccurredAt,

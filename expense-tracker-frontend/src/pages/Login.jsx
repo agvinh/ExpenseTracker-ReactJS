@@ -41,7 +41,7 @@ export default function Login() {
       console.log("tokenChanged event dispatched");
       
       console.log("Navigating to /add...");
-      navigate("/add");
+      navigate("/dashboard");
     } catch (err) {
       console.error("Login error:", err);
       setError("Login failed: " + (err.response?.data?.message || err.message));

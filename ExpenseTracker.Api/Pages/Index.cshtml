@@ -1,10 +1,187 @@
 ﻿@page
 @model IndexModel
 @{
-    ViewData["Title"] = "Home page";
+    ViewData["Title"] = "ExpenseTracker - Expense Management Solution";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="hero-section bg-primary text-white py-5 mb-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <h1 class="display-4 fw-bold mb-3">ExpenseTracker</h1>
+                <p class="lead mb-4">
+                    Comprehensive expense management solution with OCR integration for automatic bill processing and multi-language support.
+                </p>
+                <div class="d-flex gap-3 flex-wrap">
+                    <a href="/swagger" class="btn btn-light btn-lg px-4">
+                        <i class="bi bi-code-square me-2"></i>
+                        API Documentation
+                    </a>
+                    <a href="https://github.com/agvinh/LearningReactJS" class="btn btn-outline-light btn-lg px-4" target="_blank">
+                        <i class="bi bi-github me-2"></i>
+                        View Source
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-6 text-center">
+                <div class="bg-white bg-opacity-10 rounded-3 p-4 mt-4 mt-lg-0">
+                    <i class="bi bi-receipt display-1 text-white-50"></i>
+                    <h3 class="mt-3">Smart OCR Processing</h3>
+                    <p class="mb-0">Automatically extract amounts from bill images using Tesseract OCR</p>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<div class="container">
+    <div class="row">
+        <div class="col-12 text-center mb-5">
+            <h2 class="h1 mb-3">Key Features</h2>
+            <p class="lead text-muted">Everything you need for comprehensive expense management</p>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-5">
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center p-4">
+                    <div class="bg-primary bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
+                        <i class="bi bi-shield-check text-primary fs-3"></i>
+                    </div>
+                    <h4 class="card-title">JWT Authentication</h4>
+                    <p class="card-text text-muted">Secure user registration and login with JSON Web Token authentication system.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center p-4">
+                    <div class="bg-success bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
+                        <i class="bi bi-camera text-success fs-3"></i>
+                    </div>
+                    <h4 class="card-title">OCR Integration</h4>
+                    <p class="card-text text-muted">Upload bill images and automatically extract amounts using Tesseract OCR with Vietnamese and English support.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center p-4">
+                    <div class="bg-info bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
+                        <i class="bi bi-translate text-info fs-3"></i>
+                    </div>
+                    <h4 class="card-title">Multi-Language</h4>
+                    <p class="card-text text-muted">Full internationalization support with English and Vietnamese languages and locale-aware currency formatting.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center p-4">
+                    <div class="bg-warning bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
+                        <i class="bi bi-database text-warning fs-3"></i>
+                    </div>
+                    <h4 class="card-title">CRUD Operations</h4>
+                    <p class="card-text text-muted">Complete Create, Read, Update, Delete functionality for managing your expenses efficiently.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center p-4">
+                    <div class="bg-danger bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
+                        <i class="bi bi-phone text-danger fs-3"></i>
+                    </div>
+                    <h4 class="card-title">Responsive Design</h4>
+                    <p class="card-text text-muted">Beautiful Material-UI design that works perfectly on desktop, tablet, and mobile devices.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center p-4">
+                    <div class="bg-purple bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
+                        <i class="bi bi-cloud-upload text-purple fs-3"></i>
+                    </div>
+                    <h4 class="card-title">File Management</h4>
+                    <p class="card-text text-muted">Upload and manage bill images with automatic file organization and storage optimization.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="bg-light rounded-3 p-5 text-center">
+                <h3 class="mb-3">Technology Stack</h3>
+                <div class="row justify-content-center">
+                    <div class="col-lg-8">
+                        <div class="row g-3">
+                            <div class="col-6 col-md-3">
+                                <div class="bg-white rounded p-3 h-100 d-flex flex-column align-items-center">
+                                    <strong class="text-primary">.NET 9</strong>
+                                    <small class="text-muted">Backend API</small>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="bg-white rounded p-3 h-100 d-flex flex-column align-items-center">
+                                    <strong class="text-info">React 18</strong>
+                                    <small class="text-muted">Frontend SPA</small>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="bg-white rounded p-3 h-100 d-flex flex-column align-items-center">
+                                    <strong class="text-success">SQL Server</strong>
+                                    <small class="text-muted">Database</small>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="bg-white rounded p-3 h-100 d-flex flex-column align-items-center">
+                                    <strong class="text-warning">Tesseract</strong>
+                                    <small class="text-muted">OCR Engine</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .hero-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .bg-purple {
+        background-color: #6f42c1;
+    }
+    
+    .text-purple {
+        color: #6f42c1 !important;
+    }
+    
+    .card {
+        transition: transform 0.2s ease-in-out;
+    }
+    
+    .card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .btn {
+        transition: all 0.2s ease-in-out;
+    }
+    
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+</style>

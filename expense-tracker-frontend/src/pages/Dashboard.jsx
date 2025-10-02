@@ -27,10 +27,11 @@ import {
   Alert,
   Grid
 } from "@mui/material";
-import { Add, Receipt, Visibility, Edit, Delete } from "@mui/icons-material";
+import { Add, Receipt, Visibility, Edit, Delete, GetApp } from "@mui/icons-material";
+import ExportDialog from "../components/ExportDialog";
 
-// Get API base URL without /api suffix for static files
-const API_BASE_URL = import.meta.env.VITE_API_BASE.replace('/api', '');
+// Base URL for static images (remove trailing /api if present)
+const API_BASE_URL = import.meta.env.VITE_API_BASE?.replace(/\/?api\/?$/,'') || '';
 
 export default function Dashboard() {
   const { t } = useTranslation();
@@ -42,6 +43,7 @@ export default function Dashboard() {
   // Dialog states
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState(null);
   const [expenseDetails, setExpenseDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
@@ -182,16 +184,29 @@ export default function Dashboard() {
         <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>
           {t("expenses")}
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          component={Link}
-          to="/add"
-          size="large"
-          sx={{ borderRadius: 2 }}
-        >
-          {t("addExpense")}
-        </Button>
+        <Box display="flex" gap={2}>
+          {expenses.length > 0 && (
+            <Button
+              variant="outlined"
+              startIcon={<GetApp />}
+              onClick={() => setExportDialogOpen(true)}
+              size="large"
+              sx={{ borderRadius: 2 }}
+            >
+              {t("export") || "Export"}
+            </Button>
+          )}
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            component={Link}
+            to="/add"
+            size="large"
+            sx={{ borderRadius: 2 }}
+          >
+            {t("addExpense")}
+          </Button>
+        </Box>
       </Box>
 
       {/* Expenses Table */}
@@ -318,7 +333,7 @@ export default function Dashboard() {
                   <TableCell align="center">
                     {expense.billImageUrl ? (
                       <Avatar
-                        src={`${API_BASE_URL}${expense.billImageUrl}`}
+                        src={`${API_BASE_URL}/uploads/${expense.billImageUrl}`}
                         alt="bill"
                         sx={{ 
                           width: 50, 
@@ -327,7 +342,7 @@ export default function Dashboard() {
                           borderColor: 'primary.main',
                           cursor: 'pointer'
                         }}
-                        onClick={() => window.open(`${API_BASE_URL}${expense.billImageUrl}`, '_blank')}
+                        onClick={() => window.open(`${API_BASE_URL}/uploads/${expense.billImageUrl}`, '_blank')}
                       />
                     ) : (
                       <Typography variant="body2" color="text.secondary">
@@ -455,7 +470,7 @@ export default function Dashboard() {
                   </Typography>
                   <Box
                     component="img"
-                    src={`${API_BASE_URL}${expenseDetails.billImageUrl}`}
+                    src={`${API_BASE_URL}/uploads/${expenseDetails.billImageUrl}`}
                     alt="Bill"
                     sx={{
                       maxWidth: '100%',
@@ -466,7 +481,7 @@ export default function Dashboard() {
                       borderRadius: 1,
                       cursor: 'pointer'
                     }}
-                    onClick={() => window.open(`${API_BASE_URL}${expenseDetails.billImageUrl}`, '_blank')}
+                    onClick={() => window.open(`${API_BASE_URL}/uploads/${expenseDetails.billImageUrl}`, '_blank')}
                   />
                 </Grid>
               )}
@@ -524,6 +539,13 @@ export default function Dashboard() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Export Dialog */}
+      <ExportDialog
+        open={exportDialogOpen}
+        onClose={() => setExportDialogOpen(false)}
+        expenses={expenses}
+      />
     </Container>
   );
 }

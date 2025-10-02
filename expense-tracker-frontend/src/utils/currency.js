@@ -103,3 +103,42 @@ export function getPlaceholderText(locale = 'en') {
     return "123,456.78";
   }
 }
+
+/**
+ * Format currency with currency symbol for export and display
+ * @param {number} amount - The amount to format
+ * @param {string} currency - Currency code (e.g., 'VND', 'USD')
+ * @param {string} locale - Locale ('en' or 'vi')
+ * @returns {string} Formatted currency string
+ */
+export function formatCurrency(amount, currency = 'VND', locale = 'en') {
+  if (amount === null || amount === undefined || isNaN(amount)) {
+    return '0';
+  }
+
+  const numAmount = Number(amount);
+  
+  if (locale === 'vi') {
+    if (currency === 'VND') {
+      // Vietnamese format: 123.456₫
+      const formatted = formatAmountDisplay(numAmount.toString(), 'vi');
+      return `${formatted}₫`;
+    }
+    // Other currencies in Vietnamese locale
+    const formatted = formatAmountDisplay(numAmount.toString(), 'vi');
+    return `${formatted} ${currency}`;
+  } else {
+    if (currency === 'USD') {
+      // US format: $123,456.78
+      const formatted = formatAmountDisplay(numAmount.toString(), 'en');
+      return `$${formatted}`;
+    } else if (currency === 'VND') {
+      // VND in English format: 123,456 VND
+      const formatted = formatAmountDisplay(numAmount.toString(), 'en');
+      return `${formatted} VND`;
+    }
+    // Other currencies in English locale
+    const formatted = formatAmountDisplay(numAmount.toString(), 'en');
+    return `${formatted} ${currency}`;
+  }
+}

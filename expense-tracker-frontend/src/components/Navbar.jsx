@@ -48,6 +48,9 @@ export default function Navbar() {
           </>
         ) : (
           <>
+            <Button color="inherit" component={RouterLink} to="/dashboard">
+              {t("expenses")}
+            </Button>
             <Button color="inherit" component={RouterLink} to="/add">
               {t("addExpense")}
             </Button>

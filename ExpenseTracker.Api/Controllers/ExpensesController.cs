@@ -25,6 +25,20 @@ public class ExpensesController : ControllerBase
     private string? CurrentUserId =>
         User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
 
+    /// <summary>
+    /// Converts a relative path to absolute file system path for file operations
+    /// </summary>
+    /// <param name="relativePath">Relative path like /uploads/filename.jpg</param>
+    /// <returns>Absolute file system path</returns>
+    private string GetAbsoluteFilePath(string relativePath)
+    {
+        if (string.IsNullOrEmpty(relativePath)) return string.Empty;
+        
+        // Remove leading slash if present
+        var cleanPath = relativePath.TrimStart('/');
+        return Path.Combine(_env.WebRootPath ?? "wwwroot", cleanPath);
+    }
+
     [HttpGet]
     public async Task<ActionResult<IEnumerable<ExpenseDto>>> GetMyExpenses([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
@@ -36,11 +50,45 @@ public class ExpensesController : ControllerBase
         var items = await query.Skip((page - 1) * pageSize).Take(pageSize)
             .Select(x => new ExpenseDto(
                 x.Id, x.OccurredAt, x.Amount, x.Currency, x.Category, x.Description,
-                x.BillImagePath == null ? null : $"/uploads/{Path.GetFileName(x.BillImagePath)}"
+                x.BillImagePath != null && x.BillImagePath.StartsWith("/uploads/") ? x.BillImagePath.Substring("/uploads/".Length) : x.BillImagePath
             ))
             .ToListAsync();
-
         return Ok(items);
+    }
+
+    /// <summary>
+    /// Returns ALL expenses for the current user (no pagination) optionally filtered by occurred date range.
+    /// WARNING: For very large datasets consider streaming or imposing limits.
+    /// </summary>
+    /// <param name="start">Inclusive start date (UTC or local). Optional.</param>
+    /// <param name="end">Inclusive end date (UTC or local). Optional.</param>
+    [HttpGet("export")]
+    public async Task<ActionResult<IEnumerable<ExpenseDto>>> ExportAll([FromQuery] DateTime? start = null, [FromQuery] DateTime? end = null)
+    {
+        var userId = CurrentUserId!;
+        var query = _db.Expenses.Where(e => e.UserId == userId);
+
+        if (start.HasValue)
+        {
+            // Normalize to start of day
+            var s = start.Value.Date;
+            query = query.Where(e => e.OccurredAt >= s);
+        }
+        if (end.HasValue)
+        {
+            // Include entire end day
+            var eDate = end.Value.Date.AddDays(1).AddTicks(-1);
+            query = query.Where(e => e.OccurredAt <= eDate);
+        }
+
+        var list = await query
+            .OrderByDescending(e => e.OccurredAt)
+            .Select(x => new ExpenseDto(
+                x.Id, x.OccurredAt, x.Amount, x.Currency, x.Category, x.Description,
+                x.BillImagePath != null && x.BillImagePath.StartsWith("/uploads/") ? x.BillImagePath.Substring("/uploads/".Length) : x.BillImagePath
+            ))
+            .ToListAsync();
+        return Ok(list);
     }
 
     [HttpPost]
@@ -74,7 +122,7 @@ public class ExpensesController : ControllerBase
 
         return new ExpenseDto(
             x.Id, x.OccurredAt, x.Amount, x.Currency, x.Category, x.Description,
-            x.BillImagePath == null ? null : $"/uploads/{Path.GetFileName(x.BillImagePath)}"
+            x.BillImagePath?.StartsWith("/uploads/") == true ? x.BillImagePath.Substring("/uploads/".Length) : x.BillImagePath
         );
     }
 
@@ -101,12 +149,31 @@ public class ExpensesController : ControllerBase
         var x = await _db.Expenses.FirstOrDefaultAsync(e => e.Id == id && e.UserId == userId);
         if (x == null) return NotFound();
 
+        // Delete associated bill image file if exists
+        if (!string.IsNullOrEmpty(x.BillImagePath))
+        {
+            var absolutePath = GetAbsoluteFilePath(x.BillImagePath);
+            if (System.IO.File.Exists(absolutePath))
+            {
+                try
+                {
+                    System.IO.File.Delete(absolutePath);
+                }
+                catch (Exception ex)
+                {
+                    // Log the error but don't fail the delete operation
+                    // Consider using ILogger here in production
+                    Console.WriteLine($"Failed to delete image file {absolutePath}: {ex.Message}");
+                }
+            }
+        }
+
         _db.Remove(x);
         await _db.SaveChangesAsync();
         return NoContent();
     }
 
-    // Test OCR với ảnh có sẵn trong uploads folder
+    // Test OCR with existing images in uploads folder
     [HttpPost("test-ocr/{filename}")]
     public async Task<ActionResult<OcrResultDto>> TestOcrWithExistingImage(string filename)
     {
@@ -137,19 +204,7 @@ public class ExpensesController : ControllerBase
         }
     }
 
-    // OCR endpoint để extract amount từ image
-    /// <summary>
-    /// Extracts the amount from an uploaded image using OCR (Optical Character Recognition).
-    /// </summary>
-    /// <param name="file">The image file containing the amount to be extracted.</param>
-    /// <returns>
-    /// An <see cref="ActionResult{OcrResultDto}"/> containing the OCR extraction result, including success status,
-    /// extracted amount, possible amounts, and any error message.
-    /// Returns <c>BadRequest</c> if no file is provided.
-    /// </returns>
-    /// <remarks>
-    /// The maximum allowed file size is 20 MB. The uploaded file is temporarily saved and deleted after processing.
-    /// </remarks>
+    // OCR endpoint to extract amount from image
     [HttpPost("extract-amount")]
     [RequestSizeLimit(20_000_000)] // 20 MB
     public async Task<ActionResult<OcrResultDto>> ExtractAmountFromImage(IFormFile file)
@@ -159,13 +214,13 @@ public class ExpensesController : ControllerBase
         var tempPath = Path.GetTempFileName();
         try
         {
-            // Lưu file tạm thời
+            // Save temporary file
             using (var stream = System.IO.File.Create(tempPath))
             {
                 await file.CopyToAsync(stream);
             }
 
-            // Gọi OCR service
+            // Call OCR service
             var ocrService = HttpContext.RequestServices.GetRequiredService<IOcrService>();
             var result = await ocrService.ExtractAmountFromImageAsync(tempPath);
 
@@ -179,7 +234,7 @@ public class ExpensesController : ControllerBase
         }
         finally
         {
-            // Xóa file tạm
+            // Delete temporary file
             if (System.IO.File.Exists(tempPath))
             {
                 System.IO.File.Delete(tempPath);
@@ -205,25 +260,40 @@ public class ExpensesController : ControllerBase
         var allowed = new[] { ".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff" };
         if (!allowed.Contains(ext.ToLower())) return BadRequest("Unsupported file type.");
 
-        // Xóa ảnh cũ nếu có
-        if (!string.IsNullOrEmpty(x.BillImagePath) && System.IO.File.Exists(x.BillImagePath))
+        // Delete old image if exists
+        if (!string.IsNullOrEmpty(x.BillImagePath))
         {
-            System.IO.File.Delete(x.BillImagePath);
+            var oldAbsolutePath = GetAbsoluteFilePath(x.BillImagePath);
+            if (System.IO.File.Exists(oldAbsolutePath))
+            {
+                try
+                {
+                    System.IO.File.Delete(oldAbsolutePath);
+                }
+                catch (Exception ex)
+                {
+                    // Log the error but continue with upload
+                    Console.WriteLine($"Failed to delete old image file {oldAbsolutePath}: {ex.Message}");
+                }
+            }
         }
 
+        // Generate new filename and save file
         var fname = $"bill_{id}_{Guid.NewGuid():N}{ext}";
-        var path = Path.Combine(uploadsDir, fname);
-        using (var stream = System.IO.File.Create(path))
+        var absolutePath = Path.Combine(uploadsDir, fname);
+        
+        using (var stream = System.IO.File.Create(absolutePath))
         {
             await file.CopyToAsync(stream);
         }
 
-        x.BillImagePath = path;
+        // Store ONLY filename in database. (Previously stored "/uploads/filename")
+        x.BillImagePath = fname;
         await _db.SaveChangesAsync();
 
         var dto = new ExpenseDto(
             x.Id, x.OccurredAt, x.Amount, x.Currency, x.Category, x.Description,
-            $"/uploads/{fname}"
+            fname
         );
         return Ok(dto);
     }

@@ -370,7 +370,7 @@ export default function EditExpense() {
                   Current {t("billImage")}:
                 </Typography>
                 <Avatar
-                  src={`${API_BASE_URL}${expense.billImageUrl}`}
+                  src={`${API_BASE_URL}/uploads/${expense.billImageUrl}`}
                   alt="Current bill"
                   sx={{ 
                     width: 100, 
@@ -379,7 +379,7 @@ export default function EditExpense() {
                     borderColor: 'primary.main',
                     cursor: 'pointer'
                   }}
-                  onClick={() => window.open(`${API_BASE_URL}${expense.billImageUrl}`, '_blank')}
+                  onClick={() => window.open(`${API_BASE_URL}/uploads/${expense.billImageUrl}`, '_blank')}
                 />
               </Grid>
             )}

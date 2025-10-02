@@ -1,5 +1,6 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
+import { exportTranslations } from './locales/exportTranslations';
 
 const resources = {
   en: {
@@ -81,6 +82,34 @@ const resources = {
       multipleAmountsFound: "Multiple amounts found",
       clickToUse: "Click on an amount to use it",
       couldNotExtract: "Could not extract amount from image. Please enter manually.",
+      // Export functionality
+      export: "Export",
+      exportReports: "Export Reports",
+      exportStats: "Export Statistics",
+      totalExpenses: "Total Expenses",
+      totalAmount: "Total Amount",
+      categories: "Categories",
+      dateRange: "Date Range",
+      exportFormat: "Export Format",
+      dateRangeFilter: "Date Range Filter",
+      optional: "Optional",
+      startDate: "Start Date",
+      endDate: "End Date",
+      customFilename: "Custom Filename",
+      filenameHelper: "Leave empty for auto-generated filename",
+      exporting: "Exporting...",
+  exportAllServer: "Export ALL from server",
+  exportCurrentLoaded: "Export current loaded data",
+  exportAllHint: "Fetch full list (ignores pagination, applies date filters if set).",
+  exportCurrentHint: "Use only data currently loaded in the dashboard.",
+      // Export specific (merged from exportTranslations)
+  expenseReport: exportTranslations.en.expenseReport,
+  generatedOn: exportTranslations.en.generatedOn,
+  categoryBreakdown: exportTranslations.en.categoryBreakdown,
+  yes: exportTranslations.en.yes,
+  no: exportTranslations.en.no,
+      exportHeaders: exportTranslations.en.exportHeaders,
+      exportCategoryHeaders: exportTranslations.en.exportCategoryHeaders,
     },
   },
   vi: {
@@ -162,6 +191,34 @@ const resources = {
       multipleAmountsFound: "Tìm thấy nhiều số tiền",
       clickToUse: "Click vào số tiền để sử dụng",
       couldNotExtract: "Không thể trích xuất số tiền từ hình ảnh. Vui lòng nhập thủ công.",
+      // Export functionality
+      export: "Xuất",
+      exportReports: "Xuất Báo Cáo",
+      exportStats: "Thống Kê Xuất",
+      totalExpenses: "Tổng Chi Tiêu",
+      totalAmount: "Tổng Số Tiền",
+      categories: "Danh Mục",
+      dateRange: "Khoảng Thời Gian",
+      exportFormat: "Định Dạng Xuất",
+      dateRangeFilter: "Lọc Theo Khoảng Thời Gian",
+      optional: "Tùy chọn",
+      startDate: "Ngày Bắt Đầu",
+      endDate: "Ngày Kết Thúc",
+      customFilename: "Tên Tệp Tùy Chỉnh",
+      filenameHelper: "Để trống để tự động tạo tên tệp",
+      exporting: "Đang xuất...",
+  exportAllServer: "Xuất TOÀN BỘ từ server",
+  exportCurrentLoaded: "Xuất dữ liệu đang hiển thị",
+  exportAllHint: "Lấy toàn bộ (bỏ qua phân trang, áp dụng lọc ngày nếu có).",
+  exportCurrentHint: "Chỉ dùng dữ liệu đang có trên màn hình.",
+      // Export specific (merged from exportTranslations)
+  expenseReport: exportTranslations.vi.expenseReport,
+  generatedOn: exportTranslations.vi.generatedOn,
+  categoryBreakdown: exportTranslations.vi.categoryBreakdown,
+  yes: exportTranslations.vi.yes,
+  no: exportTranslations.vi.no,
+      exportHeaders: exportTranslations.vi.exportHeaders,
+      exportCategoryHeaders: exportTranslations.vi.exportCategoryHeaders,
     },
   },
 };

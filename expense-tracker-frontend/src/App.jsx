@@ -75,6 +75,11 @@ function App() {
             path="/dashboard"
             element={token ? <Dashboard /> : <Navigate to="/login" />}
           />
+          {/* Catch-all route - redirect to appropriate page */}
+          <Route
+            path="*"
+            element={token ? <Navigate to="/dashboard" /> : <Navigate to="/login" />}
+          />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>
